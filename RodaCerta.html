@@ -1,0 +1,1632 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>RodaCerta</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira:ital,wght@1,700;1,800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: bancada de loja — o palco com o carro fica fixo de um lado, o painel de atendimento do outro; no celular, um embaixo do outro */
+:root{
+  /* identidade Fox Rodas e Pneus: preto, vermelho e texto branco (tema único, escuro) */
+  --bg:#0A0A0B; --panel:#141416; --raise:#1C1C1F; --ink:#FFFFFF; --muted:#A3A3AA; --line:#2B2B30;
+  --signal:#E3141B; --signal-ink:#FFFFFF; --ok:#3CC27A; --warn:#E6A440; --bad:#FF5A55;
+  --ok-bg:#12301F; --warn-bg:#3A2B12; --bad-bg:#3D1617;
+  --stage-a:#2C2D31; --stage-b:#09090A; --floor:#050505;
+  --f-display:"Saira","Arial Narrow",Impact,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  --r:10px;
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;padding-inline:16px;padding-block:0 32px}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--signal);outline-offset:2px}
+h1,h2,h3{text-wrap:balance;margin:0}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+
+/* barra superior */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;margin-inline:-16px;padding:10px 16px 0;background:var(--panel);border-bottom:3px solid var(--signal)}
+.top-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;max-width:1280px;margin:0 auto}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand svg{flex:none}
+.brand b{font-family:var(--f-display);font-weight:800;font-size:26px;letter-spacing:.02em;text-transform:uppercase;line-height:1}
+.brand span{display:block;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:42vw}
+.tabs{display:flex;gap:2px;margin-left:auto}
+.tab{appearance:none;border:0;background:none;padding:10px 12px 9px;font-weight:600;font-size:14px;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-3px;cursor:pointer}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--ink)}
+@media (max-width:560px){.tabs{margin-left:0;width:100%}.tab{flex:1;padding-inline:4px}}
+
+main{max-width:1280px;margin:0 auto;padding-top:16px}
+
+/* provador */
+.prov{display:grid;gap:16px;grid-template-columns:1fr}
+@media (min-width:960px){.prov{grid-template-columns:minmax(0,1.35fr) minmax(360px,1fr);align-items:start}
+  .stage-col{position:sticky;top:calc(env(safe-area-inset-top,0px) + 76px)}}
+.stage-col,.panel-col{min-width:0;display:flex;flex-direction:column;gap:12px}
+.stage-frame{position:relative;border-radius:var(--r);overflow:hidden;background:var(--stage-b);touch-action:none}
+#stage{display:block;width:100%;height:auto}
+.stage-tag{position:absolute;left:10px;top:10px;display:flex;gap:6px;flex-wrap:wrap;pointer-events:none;max-width:calc(100% - 20px)}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border-radius:999px;font-size:12px;font-weight:600;background:color-mix(in srgb,var(--raise) 88%,transparent);color:var(--ink);border:1px solid var(--line);backdrop-filter:blur(6px)}
+.chip .mono{font-weight:500}
+.cmp-label{position:absolute;bottom:10px;font-family:var(--f-display);font-weight:800;letter-spacing:.08em;font-size:15px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6);pointer-events:none}
+.busy-veil{position:absolute;inset:0;display:grid;place-items:center;background:color-mix(in srgb,var(--stage-b) 55%,transparent);pointer-events:none}
+.scan{width:min(70%,360px);height:3px;border-radius:3px;background:linear-gradient(90deg,transparent,var(--signal),transparent);background-size:50% 100%;background-repeat:no-repeat;animation:scan 1.3s ease-in-out infinite}
+@keyframes scan{0%{background-position:-50% 0}100%{background-position:150% 0}}
+.handle{position:absolute;border:2px dashed var(--signal);border-radius:50%;cursor:move;touch-action:none;transform-origin:50% 50%}
+.handle i{position:absolute;width:22px;height:22px;border-radius:50%;background:var(--signal);border:2px solid var(--signal-ink)}
+.handle .kx{right:-11px;top:calc(50% - 11px);cursor:ew-resize}
+.handle .ky{bottom:-11px;left:calc(50% - 11px);cursor:ns-resize}
+.handle b{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font:800 16px var(--f-display);color:var(--signal-ink);background:var(--signal);border-radius:4px;padding:0 5px;pointer-events:none}
+.adj-wrap{display:flex;flex-direction:column;gap:8px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r);background:var(--panel)}
+.adj{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+.adj-n{font-family:var(--f-display);font-weight:800;font-size:16px;letter-spacing:.04em;text-transform:uppercase;min-width:64px}
+.seg{display:inline-flex;gap:4px;flex-wrap:wrap}
+.ai-row{display:flex;gap:10px;align-items:flex-start}
+.low-warn{font-size:13px;font-weight:600;color:var(--warn);align-self:center}
+.conf{font-family:var(--f-mono);font-size:13px;color:var(--ok);margin-top:2px}
+.ai-row .cust{width:64px;height:64px;object-fit:cover;border-radius:6px;flex:none;border:1px solid var(--line)}
+.cal-list{display:flex;flex-direction:column;gap:4px;max-height:340px;overflow-y:auto;border-top:1px solid var(--line);padding-top:8px}
+.crow{appearance:none;display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;padding:7px 10px;border-radius:8px;border:1px solid transparent;background:none;font-size:13.5px;cursor:pointer;color:var(--ink)}
+.crow:hover{background:var(--raise)}
+.crow[aria-pressed="true"]{border-color:var(--ink);background:var(--raise)}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{appearance:none;display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:40px;padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--raise);font-weight:600;font-size:14px;cursor:pointer;text-decoration:none;color:var(--ink)}
+.btn:hover{border-color:var(--muted)}
+.btn[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn.primary{background:var(--signal);color:var(--signal-ink);border-color:var(--signal)}
+.btn.primary:hover{filter:brightness(.96)}
+.btn.ghost{background:none;border-color:transparent;padding-inline:8px;color:var(--muted)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn svg{flex:none}
+.range-row{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+.range-row input{flex:1;accent-color:var(--signal)}
+
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.step-h{display:flex;align-items:baseline;gap:10px}
+.step-n{font-family:var(--f-display);font-weight:800;font-size:28px;line-height:.8;color:var(--signal);-webkit-text-stroke:1px var(--ink);paint-order:stroke}
+.step-h h2{font-family:var(--f-display);font-weight:800;font-size:22px;letter-spacing:.03em;text-transform:uppercase}
+.step-h .sub{margin-left:auto;font-size:12px;color:var(--muted)}
+.lead{margin:0;color:var(--muted);font-size:14px}
+
+.drop{display:flex;gap:12px;align-items:center;border:2px dashed var(--line);border-radius:var(--r);padding:12px;background:var(--raise)}
+.drop.over{border-color:var(--signal)}
+.drop-txt{min-width:0;font-size:13px;color:var(--muted)}
+.drop-txt b{display:block;color:var(--ink);font-size:14px}
+.file-btn{position:relative;overflow:hidden}
+.file-btn input{position:absolute;inset:0;opacity:0;cursor:pointer}
+
+.ai{border-radius:8px;padding:10px 12px;font-size:14px;display:flex;gap:10px;align-items:flex-start;background:var(--raise);border:1px solid var(--line)}
+.ai.done{border-color:var(--ok)}
+.ai.err{border-color:var(--bad)}
+.ai b{font-weight:600}
+.dot{flex:none;width:10px;height:10px;border-radius:50%;margin-top:6px;background:var(--muted)}
+.ai.busy .dot{background:var(--signal);animation:pulse 1s ease-in-out infinite}
+.ai.done .dot{background:var(--ok)}
+.ai.err .dot{background:var(--bad)}
+@keyframes pulse{50%{opacity:.3}}
+
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label,.lbl{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+select,input[type=text],input[type=number],input[type=tel],input[type=search]{width:100%;min-height:40px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--raise)}
+.row2{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:10px}
+.row3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+@media (max-width:420px){.row3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.swatches{display:flex;gap:8px;flex-wrap:wrap}
+.sw{width:30px;height:30px;border-radius:50%;border:2px solid var(--line);cursor:pointer;padding:0}
+.sw[aria-pressed="true"]{border-color:var(--ink);box-shadow:0 0 0 2px var(--signal)}
+
+.specs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:0}
+.specs div{background:var(--raise);padding:8px 10px;min-width:0}
+.specs dt{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.specs dd{margin:2px 0 0;font-family:var(--f-mono);font-size:16px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap}
+@media (max-width:420px){.specs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.tires{font-size:13px;color:var(--muted)}
+.tires .mono{color:var(--ink)}
+.note-low{font-size:12px;color:var(--warn);font-weight:600}
+
+.filters{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.fchip{appearance:none;border:1px solid var(--line);background:var(--raise);border-radius:999px;padding:5px 11px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--f-mono)}
+.fchip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.toggle{display:inline-flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin-left:auto}
+.toggle input{accent-color:var(--signal);width:16px;height:16px}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.wcard{appearance:none;text-align:left;display:flex;flex-direction:column;gap:6px;padding:10px;border-radius:var(--r);border:1px solid var(--line);background:var(--raise);cursor:pointer;min-width:0}
+.wcard:hover{border-color:var(--muted)}
+.wcard[aria-pressed="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.wcard.dim{opacity:.62}
+.wcard canvas{width:100%;aspect-ratio:1;max-width:100%;border-radius:8px;background:radial-gradient(circle at 50% 45%,var(--stage-a),var(--stage-b))}
+.wname{font-weight:600;font-size:14px;line-height:1.2}
+.wmeta{font-family:var(--f-mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.wprice{font-family:var(--f-mono);font-size:14px;font-weight:500}
+.pill{display:inline-flex;align-self:flex-start;align-items:center;gap:5px;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600}
+.pill.ok{background:var(--ok-bg);color:var(--ok)}
+.pill.warn{background:var(--warn-bg);color:var(--warn)}
+.pill.no{background:var(--bad-bg);color:var(--bad)}
+.empty{padding:20px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:var(--r);display:flex;flex-direction:column;gap:10px;align-items:center}
+
+.fit-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:13.5px}
+.fit-list li{display:flex;gap:8px;align-items:flex-start}
+.fit-list li::before{content:"";flex:none;width:8px;height:8px;border-radius:2px;margin-top:6px;background:var(--ok)}
+.fit-list li.warn::before{background:var(--warn)}
+.fit-list li.no::before{background:var(--bad)}
+.quote{display:grid;grid-template-columns:1fr auto;gap:6px 12px;font-size:14px;margin:0}
+.quote dt{color:var(--muted)}
+.quote dd{margin:0;text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.quote .total{font-weight:600;color:var(--ink);border-top:1px solid var(--line);padding-top:8px;font-size:15px}
+.quote dd.total{font-size:20px}
+.big-sub{font-size:13px;color:var(--muted);text-align:right}
+
+/* catálogo */
+.banner{padding:10px 12px;border-radius:8px;background:var(--warn-bg);color:var(--ink);font-size:14px;border:1px solid color-mix(in srgb,var(--warn) 40%,transparent)}
+.cat{display:grid;gap:16px;grid-template-columns:1fr}
+@media (min-width:960px){.cat{grid-template-columns:minmax(0,1.4fr) minmax(340px,1fr);align-items:start}}
+.list{display:flex;flex-direction:column;gap:8px}
+.lrow{display:grid;grid-template-columns:56px minmax(0,1fr) auto;gap:12px;align-items:center;padding:8px;border:1px solid var(--line);border-radius:var(--r);background:var(--raise)}
+.lrow canvas{width:56px;height:56px;border-radius:6px;background:radial-gradient(circle at 50% 45%,var(--stage-a),var(--stage-b))}
+.lrow .acts{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.form{display:flex;flex-direction:column;gap:10px}
+.photo-prev{display:flex;gap:12px;align-items:center}
+.photo-prev canvas{width:72px;height:72px;border-radius:50%;background:var(--stage-b)}
+.saved{font-size:13px;color:var(--ok);font-weight:600}
+
+/* base de veículos */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--raise)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:760px}
+th,td{padding:9px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;background:var(--panel);position:sticky;top:0}
+td.num{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:0}
+.gen-line{font-family:var(--f-mono);font-size:12.5px;white-space:nowrap}
+.bar{height:6px;border-radius:3px;background:var(--signal);margin-top:4px}
+.src{font-size:12.5px;color:var(--muted);max-width:75ch}
+.src a{color:var(--ink)}
+.sec-h{display:flex;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.sec-h h1{font-family:var(--f-display);font-weight:800;font-size:clamp(26px,4vw,38px);text-transform:uppercase;letter-spacing:.02em;line-height:1}
+.sec-h p{margin:4px 0 0;color:var(--muted);max-width:65ch}
+.sec-h .field{margin-left:auto;min-width:220px}
+
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;font-weight:600;z-index:50;max-width:calc(100% - 32px)}
+@media (prefers-reduced-motion:reduce){.scan,.ai.busy .dot{animation:none}}
+
+.top{background:#0B0B0B;border-bottom-color:var(--signal)}
+.brand .logo{height:52px;width:auto;display:block}
+.brand b{font-style:italic;font-size:20px;letter-spacing:.01em}
+.step-h h2,.sec-h h1{font-style:italic}
+.step-n{color:var(--signal);-webkit-text-stroke:0;font-style:italic}
+.btn.primary{box-shadow:0 2px 0 #7d0a0e}
+.wcard[aria-pressed="true"]{border-color:var(--signal);box-shadow:inset 0 0 0 1px var(--signal)}
+.crow[aria-pressed="true"]{border-color:var(--signal)}
+.fchip[aria-pressed="true"]{background:var(--signal);color:#fff;border-color:var(--signal)}
+.btn[aria-pressed="true"]{background:var(--signal);color:#fff;border-color:var(--signal)}
+.handle b{color:#fff}
+.toast{background:var(--signal);color:#fff}
+</style>
+
+<header class="top">
+  <div class="top-row">
+    <div class="brand">
+      <img class="logo" src="data:image/jpeg;base64,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" alt="Fox Rodas e Pneus" width="132" height="60">
+      <div><b>Provador de rodas</b><span id="storeLine">Fox Rodas e Pneus</span></div>
+    </div>
+  </div>
+</header>
+
+<main>
+<!-- PROVADOR -->
+<section id="sec-provador">
+  <div class="prov">
+    <div class="stage-col">
+      <div class="stage-frame" id="frame">
+        <canvas id="stage" width="1600" height="1000" aria-label="Visualização do carro com a roda escolhida"></canvas>
+        <div class="stage-tag" id="stageTag"></div>
+        <div id="handles"></div>
+        <span class="cmp-label" id="lblAntes" style="left:12px" hidden>ANTES</span>
+        <span class="cmp-label" id="lblDepois" style="right:12px" hidden>DEPOIS</span>
+        <div class="busy-veil" id="veil" hidden><div class="scan"></div></div>
+      </div>
+      <div class="range-row" id="cmpRow" hidden>
+        <span>Antes</span><input type="range" id="split" min="0" max="100" value="50" aria-label="Divisão antes e depois"><span>Depois</span>
+      </div>
+      <div class="adj-wrap" id="adjRow" hidden></div>
+      <div class="toolbar">
+        <button class="btn" id="bCompare" aria-pressed="false"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1v14M2 3h4v10H2zM10 3h4v10h-4z" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>Antes / depois</button>
+        <button class="btn" id="bSpin" aria-pressed="false"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 8A5.5 5.5 0 1 1 8 2.5c1.7 0 3.2.8 4.2 2M12.5 1.5v3h-3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>Girar rodas</button>
+        <button class="btn" id="bLow" aria-pressed="false"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2.5h10M4 5l8 1.5L4 8l8 1.5L4 11M8 12v2.5m-2-2 2 2 2-2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>Molas esportivas −3 cm</button>
+        <span class="low-warn" id="lowWarn" hidden>Pneu muito perto do para-lama</span>
+        <button class="btn" id="bSave" hidden><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8m-3.5-3.5L8 10l3.5-3.5M2.5 13.5h11" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>Salvar imagem</button>
+      </div>
+    </div>
+
+    <div class="panel-col">
+      <!-- Configuração da biblioteca (só com #calibrar no link) -->
+      <div class="card" id="calCard" hidden>
+        <div class="step-h"><h2>Fotos laterais</h2><span class="sub" id="calProg"></span></div>
+        <p class="lead">Modo de configuração. Escolha o modelo na lista, envie uma foto de perfil reto e confira os círculos amarelos sobre as rodas. O sistema recorta a foto e guarda na biblioteca.</p>
+        <div id="calCur" style="font-size:14px"></div>
+        <div class="toolbar">
+          <label class="btn primary file-btn">Enviar foto lateral<input type="file" id="calFile" accept="image/*"></label>
+          <button class="btn" id="calAdjust" hidden>Reajustar rodas</button>
+        </div>
+        <div class="field"><label for="calFonte">Fonte da foto</label><input type="text" id="calFonte" placeholder="Ex.: foto própria na loja, 12/10/2026" autocomplete="off"></div>
+        <div class="toolbar"><button class="btn primary" id="calSave" disabled>Salvar na biblioteca</button><button class="btn ghost" id="calCancel" hidden>Descartar</button><span class="saved" id="calMsg" role="status"></span></div>
+        <div class="cal-list" id="calList"></div>
+      </div>
+      <!-- 1 Veículo -->
+      <div class="card">
+        <div class="step-h"><span class="step-n">1</span><h2>Veículo</h2></div>
+        <div class="drop" id="drop" style="flex-direction:column;align-items:stretch">
+          <div class="toolbar">
+            <label class="btn primary file-btn" style="flex:1"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 6.5h3l1.5-2h5L13 6.5h3v8H2z" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="10.3" r="2.7" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>Tirar foto<input type="file" id="photoCam" accept="image/*" capture="environment"></label>
+            <label class="btn file-btn" style="flex:1"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><rect x="2" y="3" width="14" height="12" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M2.5 13l4-4 3 3 2-2 4 3.5" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="6.7" r="1.3" fill="currentColor"/></svg>Escolher da galeria<input type="file" id="photoGal" accept="image/*" multiple></label>
+          </div>
+          <div class="drop-txt"><b>Foto do carro do cliente</b>Qualquer ângulo. O sistema reconhece o modelo.</div>
+        </div>
+        <div class="ai" id="aiBox" hidden><span class="dot"></span><div id="aiText"></div></div>
+        <button class="btn ghost" id="bManual" style="align-self:flex-start;padding-inline:0">Escolher o modelo manualmente</button>
+        <div class="row2" id="manualRow" hidden>
+          <div class="field"><label for="veiculo">Modelo</label><select id="veiculo"></select></div>
+          <div class="field"><label for="geracao">Geração</label><select id="geracao"></select></div>
+        </div>
+        <div id="colorWrap" class="field" style="display:none"><span class="lbl">Cor do carro de demonstração</span><div class="swatches" id="swatches"></div></div>
+        <dl class="specs" id="specs" hidden></dl>
+        <div class="tires" id="tires" hidden></div>
+      </div>
+
+      <!-- 2 Rodas -->
+      <div class="card">
+        <div class="step-h"><span class="step-n">2</span><h2>Rodas para este carro</h2><span class="sub" id="countLine" hidden></span></div>
+        <div class="filters" id="rimFilters"></div>
+        <input type="checkbox" id="onlyFit" checked hidden>
+        <div class="grid" id="wheelGrid"></div>
+      </div>
+
+      <!-- 3 Encaixe -->
+      <div class="card" id="pkgCard" hidden>
+        <div class="step-h"><span class="step-n">3</span><h2>Encaixe</h2><span class="sub">por que serve</span></div>
+        <div id="pkg"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CATÁLOGO -->
+<section id="sec-catalogo" hidden>
+  <div class="sec-h"><div><h1>Catálogo da loja</h1><p>O dono cadastra as rodas que tem em estoque. O provador mostra só o que serve no carro do cliente.</p></div></div>
+  <div class="banner" id="catBanner" hidden></div>
+  <div class="cat" style="margin-top:12px">
+    <div class="card">
+      <div class="step-h"><h2>Rodas cadastradas</h2><span class="sub" id="catCount"></span></div>
+      <div class="list" id="catList"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+      <div class="card">
+        <div class="step-h"><h2 id="formTitle">Nova roda</h2></div>
+        <form class="form" id="wForm" novalidate>
+          <div class="row2">
+            <div class="field"><label for="fNome">Nome do modelo</label><input type="text" id="fNome" required placeholder="Ex.: Lâmina"></div>
+            <div class="field"><label for="fEstoque">Estoque (jogos)</label><input type="number" id="fEstoque" min="0" step="1" value="2"></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label for="fEstilo">Desenho</label><select id="fEstilo"></select></div>
+            <div class="field"><label for="fAcab">Acabamento</label><select id="fAcab"></select></div>
+          </div>
+          <div class="row3">
+            <div class="field"><label for="fAro">Aro (pol.)</label><select id="fAro"></select></div>
+            <div class="field"><label for="fLarg">Tala (pol.)</label><input type="number" id="fLarg" min="4" max="12" step="0.5" value="7"></div>
+            <div class="field"><label for="fEt">ET (mm)</label><input type="number" id="fEt" min="-20" max="70" step="1" value="40"></div>
+          </div>
+          <div class="row3">
+            <div class="field"><label for="fPcd">Furação</label><select id="fPcd"></select></div>
+            <div class="field"><label for="fCb">Centro (mm)</label><input type="number" id="fCb" min="50" max="120" step="0.1" value="73.1"></div>
+            <div class="field"><label for="fPreco">Preço/un. (R$)</label><input type="number" id="fPreco" min="0" step="10" value="990"></div>
+          </div>
+          <div class="field"><span class="lbl">Foto da roda (opcional)</span>
+            <div class="photo-prev"><canvas id="fPrev" width="144" height="144"></canvas>
+              <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
+                <label class="btn file-btn">Enviar foto de frente<input type="file" id="fFoto" accept="image/*"></label>
+                <button type="button" class="btn ghost" id="fFotoClear" hidden>Usar desenho em vez da foto</button>
+              </div>
+            </div>
+            <span class="muted" style="font-size:12.5px">Foto reta, com a roda centralizada. Sem foto, o sistema desenha a roda pelo desenho e acabamento escolhidos.</span>
+          </div>
+          <div class="toolbar">
+            <button type="submit" class="btn primary" id="fSave">Salvar roda</button>
+            <button type="button" class="btn ghost" id="fCancel" hidden>Cancelar edição</button>
+            <span class="saved" id="fMsg" role="status"></span>
+          </div>
+        </form>
+      </div>
+      <div class="card">
+        <div class="step-h"><h2>Dados da loja</h2></div>
+        <form class="form" id="cfgForm" novalidate>
+          <div class="row2">
+            <div class="field"><label for="cNome">Nome da loja</label><input type="text" id="cNome"></div>
+            <div class="field"><label for="cCidade">Cidade</label><input type="text" id="cCidade"></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label for="cWhats">WhatsApp da loja</label><input type="tel" id="cWhats" placeholder="11999999999"></div>
+            <div class="field"><label for="cParc">Parcelas sem juros</label><input type="number" id="cParc" min="1" max="24" step="1"></div>
+          </div>
+          <div class="field"><span class="lbl">Preço médio do pneu por aro (R$/un.)</span><div class="row3" id="cPneus"></div></div>
+          <div class="toolbar"><button type="submit" class="btn primary">Salvar dados</button><span class="saved" id="cMsg" role="status"></span></div>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- VEÍCULOS -->
+<section id="sec-veiculos" hidden>
+  <div class="sec-h">
+    <div><h1>Os 50 mais vendidos</h1><p>Automóveis e comerciais leves mais emplacados no Brasil de 2016 a 2025, com as medidas de roda que o provador usa para filtrar o catálogo.</p></div>
+    <div class="field"><label for="vBusca">Buscar</label><input type="search" id="vBusca" placeholder="Modelo ou furação, ex.: 4x100"></div>
+  </div>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th>#</th><th>Veículo</th><th style="text-align:right">Emplacamentos 2016–2025</th><th>Furação · centro</th><th>Aros originais</th><th>Aro máx.</th><th></th></tr></thead>
+    <tbody id="vBody"></tbody>
+  </table></div>
+  <p class="src" style="margin-top:12px">Emplacamentos: soma anual da FENABRAVE compilada pelo <a href="https://www.autoo.com.br/emplacamentos/veiculos-mais-vendidos-do-brasil/" target="_blank" rel="noopener">AUTOO</a>. Medidas: fichas técnicas e <a href="https://tirewheelguide.com/" target="_blank" rel="noopener">Tire Wheel Guide</a>. O aro máximo é a recomendação de uso urbano (original +1, até +2 em SUVs e picapes). Linhas marcadas “conferir” têm alguma medida estimada; confirme no manual antes de montar.</p>
+</section>
+</main>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+"use strict";
+/* ======================= DADOS ======================= */
+// oem: [aro, tala, ET, pneu]
+const VEHICLES = [
+ {id:"onix",m:"Chevrolet",n:"Onix",t:"hatch",v:1367452,g:[
+  {a:[2016,2019],nm:"1ª geração",pcd:"4x100",cb:56.6,max:17,oem:[[14,5.5,45,"185/70R14"],[15,6,45,"185/65R15"]]},
+  {a:[2020,2025],nm:"2ª geração",pcd:"4x100",cb:56.6,max:17,oem:[[14,5.5,40,"185/70R14"],[15,6,43,"185/65R15"],[16,6.5,44,"195/55R16"]]}]},
+ {id:"hb20",m:"Hyundai",n:"HB20",t:"hatch",v:974522,g:[
+  {a:[2016,2019],nm:"1ª geração",pcd:"4x100",cb:54.1,max:17,oem:[[14,5,41,"175/70R14"],[15,5.5,46,"185/60R15"],[16,6,43,"185/55R16"]]},
+  {a:[2020,2025],nm:"2ª geração",pcd:"4x100",cb:54.1,max:17,oem:[[14,5,41,"175/70R14"],[15,5.5,46,"185/60R15"],[16,6,43,"185/55R16"]]}]},
+ {id:"strada",m:"Fiat",n:"Strada",t:"pickup",v:967661,g:[
+  {a:[2016,2020],nm:"1ª geração",pcd:"4x98",cb:58.1,max:17,oem:[[14,5.5,44,"175/70R14"],[15,6,34,"205/65R15"]]},
+  {a:[2021,2025],nm:"2ª geração",pcd:"4x98",cb:58.1,max:17,oem:[[15,6,34,"195/65R15"],[16,6,34,"205/60R16"]]}]},
+ {id:"argo",m:"Fiat",n:"Argo",t:"hatch",v:645075,g:[
+  {a:[2017,2025],nm:"Única",pcd:"4x98",cb:58.1,max:17,oem:[[14,5.5,38,"175/65R14"],[15,6,42,"185/60R15"],[16,6,42,"195/55R16"]]}]},
+ {id:"polo",m:"Volkswagen",n:"Polo",t:"hatch",v:594531,g:[
+  {a:[2017,2025],nm:"6ª geração (MQB)",pcd:"5x100",cb:57.1,wMax:8,max:18,oem:[[15,6,40,"185/65R15"],[16,6,45,"195/55R16"],[17,7,46,"205/50R17"]]}]},
+ {id:"mobi",m:"Fiat",n:"Mobi",t:"hatch",v:585021,g:[
+  {a:[2016,2025],nm:"Única",pcd:"4x98",cb:58.1,max:15,oem:[[13,4.5,44,"165/70R13"],[14,5.5,44,"175/65R14"]]}]},
+ {id:"toro",m:"Fiat",n:"Toro",t:"pickupG",v:547856,g:[
+  {a:[2016,2025],nm:"Única",pcd:"5x110",cb:65.1,max:19,oem:[[16,6.5,40,"215/65R16"],[17,6.5,40,"215/60R17"],[18,7,35,"225/60R18"]]}]},
+ {id:"creta",m:"Hyundai",n:"Creta",t:"suv",v:534293,g:[
+  {a:[2017,2021],nm:"1ª geração",pcd:"5x114.3",cb:67.1,max:18,oem:[[16,6,43,"205/65R16"],[17,6.5,49,"215/60R17"]]},
+  {a:[2022,2025],nm:"2ª geração",pcd:"5x114.3",cb:67.1,max:19,oem:[[16,6,43,"205/65R16"],[17,6.5,49,"215/60R17"],[18,6.5,49,"215/55R18"]],low:1}]},
+ {id:"compass",m:"Jeep",n:"Compass",t:"suv",v:534267,g:[
+  {a:[2016,2025],nm:"2ª geração",pcd:"5x110",cb:65.1,max:20,oem:[[17,7,40,"225/60R17"],[18,7,40,"225/55R18"],[19,7.5,40,"235/45R19"]]}]},
+ {id:"renegade",m:"Jeep",n:"Renegade",t:"suv",v:533251,g:[
+  {a:[2016,2025],nm:"Única",pcd:"5x110",cb:65.1,max:19,oem:[[16,6.5,40,"215/65R16"],[17,6.5,40,"215/60R17"],[18,7,40,"225/55R18"]]}]},
+ {id:"kwid",m:"Renault",n:"Kwid",t:"hatch",v:513638,g:[
+  {a:[2017,2025],nm:"Única",pcd:"4x100",cb:60.1,max:15,oem:[[14,4.5,37,"165/70R14"]],low:1}]},
+ {id:"gol",m:"Volkswagen",n:"Gol",t:"hatch",v:509108,g:[
+  {a:[2000,2005],nm:"G3",pcd:"4x100",cb:57.1,max:16,oem:[[13,5.5,38,"175/70R13"],[14,6,38,"185/60R14"]],low:1},
+  {a:[2006,2014],nm:"G4",pcd:"4x100",cb:57.1,max:16,oem:[[13,5.5,38,"175/70R13"],[14,6,38,"185/60R14"]],low:1},
+  {a:[2009,2012],nm:"G5",pcd:"4x100",cb:57.1,max:17,oem:[[14,5,38,"175/70R14"],[15,6,38,"195/55R15"]]},
+  {a:[2013,2023],nm:"G6 / G7 / G8",pcd:"4x100",cb:57.1,max:17,oem:[[14,5.5,38,"175/70R14"],[15,6,38,"195/55R15"]]}]},
+ {id:"corolla",m:"Toyota",n:"Corolla",t:"sedan",v:486373,g:[
+  {a:[2009,2014],nm:"10ª geração",pcd:"5x114.3",cb:60.1,max:18,oem:[[15,6,39,"195/65R15"],[16,6.5,45,"205/55R16"],[17,7,45,"215/45R17"]]},
+  {a:[2016,2019],nm:"11ª geração",pcd:"5x114.3",cb:60.1,max:18,oem:[[16,6.5,45,"205/55R16"],[17,7,45,"215/45R17"]]},
+  {a:[2020,2025],nm:"12ª geração",pcd:"5x100",cb:54.1,max:18,oem:[[16,6.5,40,"205/55R16"],[17,7,40,"225/45R17"]]}]},
+ {id:"tcross",m:"Volkswagen",n:"T-Cross",t:"suv",v:474001,g:[
+  {a:[2019,2025],nm:"Única",pcd:"5x100",cb:57.1,wMax:8,max:19,oem:[[16,6,35,"205/60R16"],[17,6.5,39,"205/55R17"],[18,7,39,"215/45R18"]]}]},
+ {id:"ka",m:"Ford",n:"Ka",t:"hatch",v:456292,g:[
+  {a:[2008,2013],nm:"2ª geração",pcd:"4x108",cb:63.4,max:16,oem:[[13,5,37.5,"165/70R13"],[14,5.5,37.5,"175/65R14"]],low:1},
+  {a:[2015,2021],nm:"3ª geração",pcd:"4x108",cb:63.4,max:17,oem:[[14,5.5,37.5,"175/65R14"],[15,6,47.5,"185/60R15"]]}]},
+ {id:"hrv",m:"Honda",n:"HR-V",t:"suv",v:446989,g:[
+  {a:[2016,2022],nm:"1ª geração",pcd:"5x114.3",cb:64.1,max:18,oem:[[16,7,55,"215/60R16"],[17,7,55,"215/55R17"]]},
+  {a:[2023,2025],nm:"2ª geração",pcd:"5x114.3",cb:64.1,max:19,oem:[[17,7.5,55,"215/60R17"],[18,7.5,55,"225/50R18"]]}]},
+ {id:"tracker",m:"Chevrolet",n:"Tracker",t:"suv",v:431047,g:[
+  {a:[2016,2019],nm:"1ª geração",pcd:"5x105",cb:56.6,max:18,oem:[[16,6.5,39,"205/70R16"],[18,7,38,"215/55R18"]]},
+  {a:[2020,2025],nm:"2ª geração",pcd:"5x105",cb:56.6,max:19,oem:[[16,6.5,39,"205/60R16"],[17,7,42,"215/55R17"]]}]},
+ {id:"kicks",m:"Nissan",n:"Kicks",t:"suv",v:428619,g:[
+  {a:[2016,2025],nm:"1ª geração / Play",pcd:"4x100",cb:60.1,max:18,oem:[[16,6,45,"205/60R16"],[17,6.5,45,"205/55R17"]]}]},
+ {id:"onixplus",m:"Chevrolet",n:"Onix Plus",t:"sedan",v:428043,g:[
+  {a:[2019,2025],nm:"Única",pcd:"4x100",cb:56.6,max:17,oem:[[15,6,43,"185/65R15"],[16,6.5,44,"195/55R16"]]}]},
+ {id:"hilux",m:"Toyota",n:"Hilux",t:"pickupG",v:420946,g:[
+  {a:[2016,2025],nm:"8ª geração",pcd:"6x139.7",cb:106.1,max:20,oem:[[17,7.5,30,"265/65R17"],[18,7.5,30,"265/60R18"]]}]},
+ {id:"saveiro",m:"Volkswagen",n:"Saveiro",t:"pickup",v:417081,g:[
+  {a:[2016,2025],nm:"G6 / G7",pcd:"4x100",cb:57.1,max:17,oem:[[14,5.5,38,"175/70R14"],[15,6,38,"205/60R15"]]}]},
+ {id:"hb20s",m:"Hyundai",n:"HB20S",t:"sedan",v:324917,g:[
+  {a:[2016,2019],nm:"1ª geração",pcd:"4x100",cb:54.1,max:17,oem:[[14,5,41,"175/70R14"],[15,5.5,46,"185/60R15"],[16,6,43,"185/55R16"]]},
+  {a:[2020,2025],nm:"2ª geração",pcd:"4x100",cb:54.1,max:17,oem:[[15,5.5,46,"185/60R15"],[16,6,43,"185/55R16"]]}]},
+ {id:"sandero",m:"Renault",n:"Sandero",t:"hatch",v:295365,g:[
+  {a:[2008,2014],nm:"1ª geração",pcd:"4x100",cb:60.1,max:16,oem:[[14,5.5,43,"185/70R14"],[15,6,40,"185/65R15"]]},
+  {a:[2016,2022],nm:"2ª geração",pcd:"4x100",cb:60.1,max:17,oem:[[15,6,40,"185/65R15"],[16,6.5,43,"205/55R16"]]}]},
+ {id:"s10",m:"Chevrolet",n:"S10",t:"pickupG",v:294600,g:[
+  {a:[2016,2025],nm:"2ª geração",pcd:"6x139.7",cb:100.3,max:20,oem:[[16,6.5,33,"245/70R16"],[17,7,33,"265/65R17"],[18,7.5,33,"265/60R18"]]}]},
+ {id:"prisma",m:"Chevrolet",n:"Prisma",t:"sedan",v:281859,g:[
+  {a:[2016,2020],nm:"2ª geração",pcd:"4x100",cb:56.6,max:17,oem:[[14,5.5,45,"185/70R14"],[15,6,45,"185/65R15"]]}]},
+ {id:"cronos",m:"Fiat",n:"Cronos",t:"sedan",v:260838,g:[
+  {a:[2018,2025],nm:"Única",pcd:"4x98",cb:58.1,max:17,oem:[[15,6,42,"185/60R15"],[16,6,42,"195/55R16"]]}]},
+ {id:"nivus",m:"Volkswagen",n:"Nivus",t:"suv",v:249114,g:[
+  {a:[2020,2025],nm:"Única",pcd:"5x100",cb:57.1,wMax:8,max:18,oem:[[16,6,38,"205/60R16"],[17,6.5,39,"205/55R17"]]}]},
+ {id:"virtus",m:"Volkswagen",n:"Virtus",t:"sedan",v:242045,g:[
+  {a:[2018,2025],nm:"Única",pcd:"5x100",cb:57.1,wMax:8,max:18,oem:[[15,6,40,"185/65R15"],[16,6,45,"195/55R16"],[17,7,46,"205/50R17"]]}]},
+ {id:"corollacross",m:"Toyota",n:"Corolla Cross",t:"suv",v:226267,g:[
+  {a:[2021,2025],nm:"Única",pcd:"5x114.3",cb:60.1,max:19,oem:[[17,6.5,45,"215/60R17"],[18,7,50,"225/50R18"]]}]},
+ {id:"duster",m:"Renault",n:"Duster",t:"suv",v:222943,g:[
+  {a:[2016,2020],nm:"1ª geração",pcd:"5x114.3",cb:66.1,max:18,oem:[[16,6.5,50,"215/65R16"]]},
+  {a:[2021,2025],nm:"2ª geração",pcd:"5x114.3",cb:66.1,max:18,oem:[[16,6.5,50,"215/65R16"],[17,7,48,"215/60R17"]]}]},
+ {id:"voyage",m:"Volkswagen",n:"Voyage",t:"sedan",v:219659,g:[
+  {a:[2009,2012],nm:"G5",pcd:"4x100",cb:57.1,max:17,oem:[[14,5,38,"175/70R14"],[15,6,38,"195/55R15"]]},
+  {a:[2016,2023],nm:"G6 / G7",pcd:"4x100",cb:57.1,max:17,oem:[[14,5.5,38,"175/70R14"],[15,6,38,"195/55R15"]]}]},
+ {id:"ranger",m:"Ford",n:"Ranger",t:"pickupG",v:217212,g:[
+  {a:[2016,2023],nm:"3ª geração",pcd:"6x139.7",cb:93.1,max:20,oem:[[16,7,55,"255/70R16"],[17,7.5,55,"265/65R17"],[18,8,55,"265/60R18"]]},
+  {a:[2024,2025],nm:"4ª geração",pcd:"6x139.7",cb:93.1,max:20,oem:[[17,8,45,"255/70R17"],[18,8,45,"255/65R18"]],low:1}]},
+ {id:"spin",m:"Chevrolet",n:"Spin",t:"mpv",v:215760,g:[
+  {a:[2016,2025],nm:"Única",pcd:"4x100",cb:56.6,max:17,oem:[[15,6,39,"195/65R15"],[16,6.5,41,"205/60R16"]]}]},
+ {id:"fox",m:"Volkswagen",n:"Fox",t:"hatch",v:196443,g:[
+  {a:[2004,2009],nm:"1ª fase",pcd:"5x100",cb:57.1,max:17,oem:[[14,5,35,"175/70R14"],[15,6,38,"195/55R15"]],low:1},
+  {a:[2010,2014],nm:"2ª fase",pcd:"5x100",cb:57.1,max:17,oem:[[14,5,35,"175/70R14"],[15,6,38,"195/55R15"]],low:1},
+  {a:[2015,2021],nm:"3ª fase",pcd:"5x100",cb:57.1,max:17,oem:[[14,5,35,"175/70R14"],[15,6,38,"195/55R15"],[16,6,43,"195/50R16"]]}]},
+ {id:"pulse",m:"Fiat",n:"Pulse",t:"suv",v:186577,g:[
+  {a:[2021,2025],nm:"Única",pcd:"4x98",cb:58.1,max:18,oem:[[16,6,40,"195/60R16"],[17,6.5,40,"205/50R17"]],low:1}]},
+ {id:"yaris",m:"Toyota",n:"Yaris",t:"hatch",v:178672,g:[
+  {a:[2018,2025],nm:"Única",pcd:"4x100",cb:54.1,max:17,oem:[[15,5.5,45,"185/60R15"],[16,6,39,"195/50R16"]]}]},
+ {id:"fiorino",m:"Fiat",n:"Fiorino",t:"van",v:174411,g:[
+  {a:[2016,2025],nm:"Única",pcd:"4x98",cb:58.1,max:15,oem:[[14,5.5,40,"175/70R14"]],low:1}]},
+ {id:"kasedan",m:"Ford",n:"Ka Sedan",t:"sedan",v:169116,g:[
+  {a:[2016,2021],nm:"3ª geração",pcd:"4x108",cb:63.4,max:17,oem:[[14,5.5,37.5,"175/65R14"],[15,6,47.5,"185/60R15"]]}]},
+ {id:"fastback",m:"Fiat",n:"Fastback",t:"suv",v:155855,g:[
+  {a:[2022,2025],nm:"Única",pcd:"4x98",cb:58.1,max:18,oem:[[16,6,40,"205/60R16"],[17,6.5,40,"215/50R17"],[18,7,40,"215/45R18"]],low:1}]},
+ {id:"ecosport",m:"Ford",n:"EcoSport",t:"suv",v:155083,g:[
+  {a:[2003,2012],nm:"1ª geração",pcd:"4x108",cb:63.4,max:17,oem:[[15,6,38,"205/65R15"],[16,6.5,38,"205/60R16"]],low:1},
+  {a:[2016,2021],nm:"2ª geração",pcd:"4x108",cb:63.4,max:18,oem:[[15,6,37,"205/65R15"],[16,6.5,40,"205/60R16"],[17,7,40,"205/50R17"]],low:1}]},
+ {id:"versa",m:"Nissan",n:"Versa",t:"sedan",v:151447,g:[
+  {a:[2016,2020],nm:"1ª geração",pcd:"4x100",cb:60.1,max:17,oem:[[15,5.5,40,"185/65R15"],[16,6,45,"185/55R16"]]},
+  {a:[2021,2025],nm:"2ª geração",pcd:"4x100",cb:60.1,max:18,oem:[[16,6.5,40,"195/55R16"],[17,6.5,40,"205/50R17"]]}]},
+ {id:"uno",m:"Fiat",n:"Uno",t:"hatch",v:148595,g:[
+  {a:[1990,2013],nm:"Mille / Fire",pcd:"4x98",cb:58.1,max:14,oem:[[13,5,35,"145/80R13"],[13,5,35,"165/70R13"]],low:1},
+  {a:[2016,2021],nm:"2ª geração",pcd:"4x98",cb:58.1,max:16,oem:[[13,5,40,"165/70R13"],[14,5.5,40,"175/65R14"],[15,6,40,"185/60R15"]]}]},
+ {id:"civic",m:"Honda",n:"Civic",t:"sedan",v:144705,g:[
+  {a:[2007,2011],nm:"8ª geração",pcd:"5x114.3",cb:64.1,max:18,oem:[[16,6.5,45,"205/55R16"],[17,7,50,"215/45R17"]]},
+  {a:[2016,2021],nm:"9ª / 10ª geração",pcd:"5x114.3",cb:64.1,max:18,oem:[[16,7,45,"215/55R16"],[17,7,45,"215/50R17"]]}]},
+ {id:"p208",m:"Peugeot",n:"208",t:"hatch",v:142414,g:[
+  {a:[2016,2020],nm:"1ª geração",pcd:"4x108",cb:65.1,max:17,oem:[[15,6,23,"185/65R15"],[16,6.5,23,"195/55R16"]],low:1},
+  {a:[2021,2025],nm:"2ª geração",pcd:"4x108",cb:65.1,max:17,oem:[[15,6,23,"185/65R15"],[16,6.5,23,"195/55R16"]],low:1}]},
+ {id:"city",m:"Honda",n:"City",t:"sedan",v:142405,g:[
+  {a:[2016,2021],nm:"2ª geração",pcd:"4x100",cb:56.1,max:17,oem:[[15,5.5,45,"175/65R15"],[16,6,50,"185/55R16"]]},
+  {a:[2022,2025],nm:"3ª geração",pcd:"4x100",cb:56.1,max:17,oem:[[15,6,50,"185/60R15"],[16,6,53,"185/55R16"]]}]},
+ {id:"montana",m:"Chevrolet",n:"Montana",t:"pickup",v:142274,g:[
+  {a:[2016,2021],nm:"2ª geração",pcd:"4x100",cb:56.6,max:16,oem:[[15,6,45,"185/65R15"]],low:1},
+  {a:[2023,2025],nm:"3ª geração",pcd:"5x105",cb:56.6,max:18,oem:[[16,6.5,39,"215/60R16"],[17,7,42,"215/55R17"]]}]},
+ {id:"logan",m:"Renault",n:"Logan",t:"sedan",v:142160,g:[
+  {a:[2007,2013],nm:"1ª geração",pcd:"4x100",cb:60.1,max:16,oem:[[14,5.5,43,"185/70R14"],[15,6,40,"185/65R15"]]},
+  {a:[2016,2022],nm:"2ª geração",pcd:"4x100",cb:60.1,max:17,oem:[[15,6,40,"185/65R15"],[16,6.5,43,"195/55R16"]]}]},
+ {id:"sw4",m:"Toyota",n:"SW4",t:"suvG",v:139018,g:[
+  {a:[2016,2025],nm:"3ª geração",pcd:"6x139.7",cb:106.1,max:20,oem:[[17,7.5,30,"265/65R17"],[18,7.5,30,"265/60R18"]]}]},
+ {id:"etios",m:"Toyota",n:"Etios",t:"hatch",v:136576,g:[
+  {a:[2016,2021],nm:"Única",pcd:"4x100",cb:54.1,max:16,oem:[[14,5.5,39,"175/65R14"],[15,5.5,45,"185/60R15"]]}]},
+ {id:"yarissedan",m:"Toyota",n:"Yaris Sedã",t:"sedan",v:134233,g:[
+  {a:[2018,2025],nm:"Única",pcd:"4x100",cb:54.1,max:17,oem:[[15,5.5,45,"185/60R15"],[16,6,39,"195/50R16"]]}]},
+ {id:"celta",m:"Chevrolet",n:"Celta",t:"hatch",v:0,g:[
+  {a:[2001,2005],nm:"1ª fase",pcd:"4x100",cb:56.6,max:15,oem:[[13,5,45,"165/70R13"],[14,5.5,49,"175/65R14"]]},
+  {a:[2006,2015],nm:"2ª fase",pcd:"4x100",cb:56.6,max:15,oem:[[13,5,45,"165/70R13"],[14,5.5,49,"175/65R14"]]}]},
+ {id:"classic",m:"Chevrolet",n:"Corsa Classic / Classic",t:"sedan",v:0,g:[
+  {a:[1996,2010],nm:"Corsa Sedan / Classic",pcd:"4x100",cb:56.6,max:15,oem:[[13,5,45,"165/70R13"],[14,5.5,49,"175/65R14"]]},
+  {a:[2011,2016],nm:"Classic fase final",pcd:"4x100",cb:56.6,max:15,oem:[[13,5,45,"165/70R13"],[14,5.5,49,"175/65R14"]]}]},
+ {id:"corsa",m:"Chevrolet",n:"Corsa (Novo Corsa)",t:"hatch",v:0,g:[
+  {a:[2002,2012],nm:"2ª geração",pcd:"4x100",cb:56.6,max:16,oem:[[14,5.5,49,"185/60R14"],[15,6,49,"185/55R15"]],low:1}]},
+ {id:"cobalt",m:"Chevrolet",n:"Cobalt",t:"sedan",v:0,g:[
+  {a:[2012,2019],nm:"Única",pcd:"4x100",cb:56.6,max:17,oem:[[15,6,39,"195/65R15"],[16,6.5,44,"205/55R16"]]}]},
+ {id:"up",m:"Volkswagen",n:"up!",t:"hatch",v:0,g:[
+  {a:[2014,2021],nm:"Única",pcd:"4x100",cb:57.1,max:16,oem:[[14,5,35,"175/70R14"],[15,5.5,41,"185/60R15"]]}]},
+ {id:"tera",m:"Volkswagen",n:"Tera",t:"suv",v:0,g:[
+  {a:[2025,2025],nm:"Única",pcd:"5x100",cb:57.1,wMax:8,max:18,oem:[[16,6,40,"205/60R16"],[17,6.5,40,"205/55R17"]],low:1}]},
+ {id:"palio",m:"Fiat",n:"Palio",t:"hatch",v:0,g:[
+  {a:[1996,2017],nm:"1ª geração / Fire",pcd:"4x98",cb:58.1,max:15,oem:[[13,5,35,"165/70R13"],[14,5.5,44,"175/65R14"]],low:1}]},
+ {id:"siena",m:"Fiat",n:"Siena",t:"sedan",v:0,g:[
+  {a:[1997,2016],nm:"1ª geração / Fire",pcd:"4x98",cb:58.1,max:15,oem:[[13,5,35,"165/70R13"],[14,5.5,44,"175/65R14"]],low:1}]},
+ {id:"fiesta",m:"Ford",n:"Fiesta",t:"hatch",v:0,g:[
+  {a:[2002,2014],nm:"Street / Rocam",pcd:"4x108",cb:63.4,max:16,oem:[[14,5.5,47.5,"175/65R14"],[15,6,47.5,"195/50R15"]]}]},
+ {id:"fit",m:"Honda",n:"Fit",t:"hatch",v:0,g:[
+  {a:[2009,2014],nm:"2ª geração",pcd:"4x100",cb:56.1,max:17,oem:[[15,5.5,45,"175/65R15"],[16,6,50,"185/55R16"]]},
+  {a:[2015,2021],nm:"3ª geração",pcd:"4x100",cb:56.1,max:17,oem:[[15,6,50,"175/65R15"],[16,6,50,"185/55R16"]]}]},
+ {id:"clio",m:"Renault",n:"Clio",t:"hatch",v:0,g:[
+  {a:[1999,2016],nm:"2ª geração",pcd:"4x100",cb:60.1,max:15,oem:[[13,5,40,"165/70R13"],[14,5.5,43,"175/65R14"]],low:1}]},
+ {id:"march",m:"Nissan",n:"March",t:"hatch",v:0,g:[
+  {a:[2012,2020],nm:"Única",pcd:"4x100",cb:60.1,max:17,oem:[[14,5.5,45,"165/70R14"],[15,5.5,50,"175/60R15"],[16,6,55,"185/55R16"]]}]},
+ {id:"p206",m:"Peugeot",n:"206",t:"hatch",v:0,g:[
+  {a:[1999,2010],nm:"Única",pcd:"4x108",cb:65.1,max:16,oem:[[14,5.5,24,"175/65R14"],[15,6,24,"185/55R15"]],low:1}]},
+ {id:"p207",m:"Peugeot",n:"207",t:"hatch",v:0,g:[
+  {a:[2008,2015],nm:"Única",pcd:"4x108",cb:65.1,max:16,oem:[[14,5.5,34,"175/65R14"],[15,6,27,"185/60R15"]],low:1}]},
+ {id:"c3",m:"Citroën",n:"C3",t:"hatch",v:0,g:[
+  {a:[2003,2012],nm:"1ª geração",pcd:"4x108",cb:65.1,max:16,oem:[[14,6,18,"185/60R14"],[15,6,23,"185/60R15"]],low:1}]},
+ {id:"dolphinmini",m:"BYD",n:"Dolphin Mini",t:"hatch",v:0,g:[
+  {a:[2024,2025],nm:"Única",pcd:"4x100",cb:54.1,max:17,oem:[[16,5.5,45,"175/55R16"]]}]}
+];
+VEHICLES.forEach((v,i)=>v.rank=i+1);
+const byId = Object.fromEntries(VEHICLES.map(v=>[v.id,v]));
+
+const STYLES = {
+  vertice:{label:"10 raios duplos"}, lamina:{label:"5 raios em V"}, colmeia:{label:"Malha cruzada"},
+  tufao:{label:"Turbina"}, arena:{label:"6 raios côncavos"}, cometa:{label:"Multirraios"},
+  trilha:{label:"Off-road 6 raios"}, rally:{label:"Disco de 8 furos"},
+  malha:{label:"Malha clássica bipartida",twoPiece:true}
+};
+const FINISHES = {
+  prata:{label:"Prata",hi:"#f5f7f9",base:"#c4cad0",lo:"#7f878f",edge:"#757d86",ew:.012,lip:["#f0f2f4","#959ca4"],cap:"#d6dade"},
+  grafite:{label:"Grafite",hi:"#8e949b",base:"#565c63",lo:"#2c3035",edge:"#23262a",ew:.012,lip:["#80868d","#373b40"],cap:"#4a4f55"},
+  pretoFosco:{label:"Preto fosco",hi:"#4c4f54",base:"#2a2c30",lo:"#17181a",edge:"#0f1012",ew:.012,lip:["#404347","#191a1c"],cap:"#2a2c30"},
+  diamantada:{label:"Preta diamantada",hi:"#f4f6f8",base:"#c8cdd2",lo:"#959ca4",edge:"#111214",ew:.04,lip:["#eceff1","#a2a9b0"],cap:"#18191c"},
+  grafiteDiam:{label:"Grafite diamantada",hi:"#f2f4f6",base:"#c2c7cd",lo:"#8f969e",edge:"#3b4047",ew:.04,lip:["#e6e9ec","#9aa1a9"],cap:"#3b4047"},
+  bronze:{label:"Bronze",hi:"#d6ad70",base:"#9b7740",lo:"#5b431f",edge:"#46331a",ew:.012,lip:["#cba266","#6c5029"],cap:"#87683a"},
+  branca:{label:"Branca",hi:"#ffffff",base:"#e7e9ec",lo:"#b4bac1",edge:"#979ea6",ew:.012,lip:["#ffffff","#c5cad0"],cap:"#e7e9ec"},
+  dourada:{label:"Dourada",hi:"#f3dd9b",base:"#c9a24f",lo:"#7c5d22",edge:"#5e4519",ew:.01,lip:["#ffffff","#8f969e"],cap:"#b8913f"},
+  cromada:{label:"Cromada",hi:"#ffffff",base:"#d8dce0",lo:"#646b73",edge:"#555c64",ew:.012,lip:["#ffffff","#6f767e"],cap:"#eceef1"}
+};
+const PCDS = ["4x98","4x100","4x108","5x100","5x105","5x110","5x114.3","6x139.7"];
+const RIMS = [13,14,15,16,17,18,19,20];
+// catálogo de exemplo (usado quando a loja ainda não tem catálogo salvo)
+const DEMO_WHEELS = [];
+const DEFAULT_CONFIG = {nome:"Fox Rodas e Pneus",cidade:"",whats:"",parcelas:10,pneus:{13:260,14:300,15:360,16:450,17:560,18:690,19:820,20:950}};
+
+/* body outlines (frente à esquerda); x e y em fração do comprimento */
+const BODIES = {
+  hatch:{L:4000,ax:[.20,.84],b:[[0,.13],[.01,.19],[.05,.225],[.24,.255],[.30,.27],[.44,.365],[.52,.372],[.74,.368],[.88,.345],[.955,.295],[.985,.22],[.995,.14],[.975,.085],[.90,.075],[.10,.075],[.02,.09]],w:[[.315,.272],[.445,.355],[.73,.357],[.86,.335],[.93,.282],[.92,.266],[.32,.262]]},
+  sedan:{L:4450,ax:[.19,.78],b:[[0,.12],[.01,.175],[.05,.205],[.26,.23],[.33,.245],[.45,.325],[.53,.332],[.68,.328],[.79,.285],[.93,.255],[.985,.235],[.997,.17],[.985,.09],[.92,.075],[.08,.075],[.015,.085]],w:[[.345,.248],[.455,.315],[.67,.316],[.77,.27],[.76,.256],[.35,.24]]},
+  suv:{L:4300,ax:[.20,.81],b:[[0,.15],[.008,.22],[.05,.26],[.24,.285],[.31,.30],[.42,.385],[.50,.392],[.82,.39],[.93,.375],[.975,.32],[.993,.24],[.99,.15],[.965,.10],[.90,.09],[.10,.09],[.02,.105]],w:[[.325,.302],[.425,.373],[.82,.376],[.91,.36],[.945,.31],[.33,.29]]},
+  suvG:{L:4800,ax:[.18,.78],b:[[0,.15],[.008,.22],[.05,.262],[.22,.285],[.29,.30],[.38,.375],[.46,.382],[.86,.38],[.95,.37],[.982,.32],[.995,.24],[.99,.15],[.965,.10],[.90,.095],[.10,.095],[.02,.105]],w:[[.305,.302],[.39,.364],[.86,.366],[.94,.356],[.965,.31],[.31,.29]]},
+  pickup:{L:4500,ax:[.19,.80],b:[[0,.13],[.008,.20],[.05,.235],[.22,.26],[.28,.275],[.38,.355],[.45,.36],[.60,.357],[.625,.30],[.63,.255],[.985,.255],[.995,.20],[.99,.11],[.96,.085],[.08,.085],[.015,.095]],w:[[.295,.277],[.385,.342],[.585,.343],[.605,.29],[.30,.268]]},
+  pickupG:{L:5300,ax:[.17,.76],b:[[0,.14],[.006,.21],[.04,.245],[.19,.262],[.24,.275],[.32,.34],[.38,.345],[.62,.343],[.64,.30],[.645,.26],[.985,.26],[.995,.21],[.99,.12],[.96,.095],[.06,.095],[.012,.105]],w:[[.255,.278],[.325,.33],[.605,.331],[.625,.29],[.26,.27]]},
+  van:{L:4400,ax:[.19,.80],b:[[0,.13],[.008,.20],[.05,.235],[.20,.26],[.27,.285],[.36,.40],[.42,.425],[.97,.425],[.99,.40],[.995,.20],[.99,.11],[.96,.085],[.08,.085],[.015,.095]],w:[[.285,.29],[.37,.39],[.47,.391],[.47,.28],[.29,.278]]},
+  mpv:{L:4360,ax:[.20,.82],b:[[0,.13],[.008,.20],[.05,.235],[.22,.262],[.28,.28],[.40,.38],[.48,.39],[.88,.385],[.965,.36],[.985,.29],[.995,.20],[.99,.11],[.96,.085],[.08,.085],[.015,.095]],w:[[.295,.282],[.405,.368],[.88,.369],[.955,.345],[.965,.29],[.30,.272]]}
+};
+const BODY_COLORS = [["Prata","#aeb4ba"],["Branco","#eceeef"],["Preto","#202226"],["Cinza","#6b7179"],["Vermelho","#a3262b"],["Azul","#22457a"]];
+const TYPE_LABEL = {hatch:"Hatch",sedan:"Sedã",suv:"SUV",suvG:"SUV grande",pickup:"Picape compacta",pickupG:"Picape média",van:"Furgão",mpv:"Minivan"};
+
+/* ======================= REGRAS DE ENCAIXE ======================= */
+function parseTire(s){const m=/(\d{3})\/(\d{2})\s*R\s*(\d{2})/.exec(s);if(!m)return null;const w=+m[1],a=+m[2],r=+m[3];return {w,a,r,d:r*25.4+2*w*a/100,str:`${w}/${a} R${r}`};}
+function derive(g){
+  if(g._d) return g._d;
+  const rims=g.oem.map(o=>o[0]),ws=g.oem.map(o=>o[1]),ets=g.oem.map(o=>o[2]);
+  const ref=parseTire(g.oem[g.oem.length-1][3]);
+  const maxOem=Math.max(...rims);
+  g._d={minRim:Math.min(...rims),maxOem,max:g.max,wMin:Math.max(4.5,Math.min(...ws)-0.5),wMax:g.wMax||(Math.max(...ws)+(g.max>maxOem?1:0.5)),
+    etLo:Math.round(Math.min(...ets)-8),etHi:Math.round(Math.max(...ets)+6),refD:ref.d,lugs:+g.pcd.split("x")[0]};
+  return g._d;
+}
+const STD_W=[145,155,165,175,185,195,205,215,225,235,245,255,265,275,285,295,305];
+function suggestTire(g,rim,width){
+  const d=derive(g);
+  let base=g.oem[0];
+  for(const o of g.oem){ if(Math.abs(o[0]-rim)<=Math.abs(base[0]-rim)) base=o; }
+  const bt=parseTire(base[3]);
+  const target=bt.w+(width-base[1])*25.4;
+  const w=STD_W.reduce((b,x)=>Math.abs(x-target)<Math.abs(b-target)?x:b,STD_W[0]);
+  let best=null;
+  for(let a=25;a<=80;a+=5){const dia=rim*25.4+2*w*a/100;const del=(dia-d.refD)/d.refD;if(!best||Math.abs(del)<Math.abs(best.delta))best={w,a,rim,d:dia,delta:del};}
+  best.str=`${best.w}/${best.a} R${best.rim}`;
+  return best;
+}
+const fmtN=(n,dec=1)=>Number(n).toLocaleString("pt-BR",{maximumFractionDigits:dec});
+const fmtBRL=n=>Number(n).toLocaleString("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:0});
+function checkFit(w,g){
+  const d=derive(g),notes=[];let st="ok";
+  const bump=s=>{if(s==="no")st="no";else if(s==="warn"&&st==="ok")st="warn";};
+  if(w.pcd!==g.pcd){notes.push(["no",`Furação ${w.pcd}; o carro usa ${g.pcd}`]);bump("no");}
+  else notes.push(["ok",`Furação ${g.pcd} confere`]);
+  if(w.cb<g.cb-0.05){notes.push(["no",`Centro de ${fmtN(w.cb)} mm é menor que o cubo (${fmtN(g.cb)} mm)`]);bump("no");}
+  else if(w.cb>g.cb+0.05) notes.push(["ok",`Montar com anel centralizador ${fmtN(w.cb)} → ${fmtN(g.cb)} mm`]);
+  else notes.push(["ok",`Centro ${fmtN(g.cb)} mm direto no cubo`]);
+  if(w.aro<d.minRim){notes.push(["no",`Aro ${w.aro} é menor que o original (${d.minRim}): pode não passar pelo freio`]);bump("no");}
+  else if(w.aro>d.max){notes.push(["no",`Aro ${w.aro} passa do máximo recomendado (${d.max})`]);bump("no");}
+  else notes.push(["ok",`Aro ${w.aro} dentro da faixa ${d.minRim}–${d.max}`]);
+  if(w.tala>d.wMax+0.01){notes.push(["no",`Tala ${fmtN(w.tala)}" larga demais (até ${fmtN(d.wMax)}")`]);bump("no");}
+  else if(w.tala<d.wMin-0.01){notes.push(["warn",`Tala ${fmtN(w.tala)}" estreita para o carro (mín. ${fmtN(d.wMin)}")`]);bump("warn");}
+  if(w.et<d.etLo||w.et>d.etHi){notes.push(["warn",`ET ${w.et} fora da faixa ${d.etLo}–${d.etHi} mm: risco de raspar ou sair do para-lama`]);bump("warn");}
+  else notes.push(["ok",`ET ${w.et} dentro da faixa ${d.etLo}–${d.etHi} mm`]);
+  if(st!=="no"){const t=suggestTire(g,w.aro,w.tala);if(Math.abs(t.delta)>0.03){notes.push(["warn",`Diâmetro do conjunto ${t.delta>0?"+":""}${fmtN(t.delta*100)}%: velocímetro e caixa de roda`]);bump("warn");}}
+  return {st,notes};
+}
+
+/* ======================= ESTADO ======================= */
+const S = {
+  vid:"polo", gi:0, color:"#aeb4ba",
+  photo:null, wheels:[], squash:1, photoBlobs:[],
+  sel:null, spin:false, rot:0, compare:false, split:.5, adjust:false,
+  onlyFit:true, rimF:null, incTires:true, lower:false,
+  catalog:DEMO_WHEELS.map(w=>({...w})), config:structuredClone(DEFAULT_CONFIG),
+  db:null, canWrite:false, dbEmpty:false, demo:true,
+  ai:null, editing:null, formFoto:null,
+  vistas:{}, cal:null, calMode:false, viewState:"none", custThumb:null, empty:true,
+  lado:1, keepTire:true
+};
+const $=s=>document.querySelector(s);
+const veh=()=>byId[S.vid];
+const gen=()=>veh().g[S.gi]||veh().g[veh().g.length-1];
+const reduceMotion=matchMedia("(prefers-reduced-motion: reduce)").matches;
+function toast(msg){const t=$("#toast");t.textContent=msg;t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,2600);}
+function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+
+/* ======================= DESENHO DA RODA ======================= */
+const imgCache={};
+// foto de produto com fundo claro e uniforme: o fundo vira transparente (inclusive entre os raios),
+// para aparecerem o freio e o interior do aro. Fundo escuro ou irregular: usa a foto como está.
+function keyBackground(im){
+  const iw=im.naturalWidth||im.width,ih=im.naturalHeight||im.height,n=Math.min(512,Math.max(iw,ih));
+  if(!n)return im;
+  try{
+    const cv=document.createElement("canvas");cv.width=cv.height=n;const x=cv.getContext("2d");x.drawImage(im,0,0,n,n);
+    const d=x.getImageData(0,0,n,n),px=d.data,m=Math.max(3,Math.round(n*.012));
+    const cs=[[m,m],[n-1-m,m],[m,n-1-m],[n-1-m,n-1-m]].map(([i,j])=>{const o=(j*n+i)*4;return [px[o],px[o+1],px[o+2]];});
+    const bg=[0,1,2].map(k=>cs.reduce((a,c)=>a+c[k],0)/4);
+    if(cs.some(c=>Math.max(Math.abs(c[0]-bg[0]),Math.abs(c[1]-bg[1]),Math.abs(c[2]-bg[2]))>22))return im;
+    if(.2126*bg[0]+.7152*bg[1]+.0722*bg[2]<165)return im;
+    for(let o=0;o<px.length;o+=4){
+      const dist=Math.max(Math.abs(px[o]-bg[0]),Math.abs(px[o+1]-bg[1]),Math.abs(px[o+2]-bg[2]));
+      const a=Math.max(0,Math.min(1,(dist-12)/20));if(a<1)px[o+3]=Math.round(px[o+3]*a);
+    }
+    x.putImageData(d,0,0);return cv;
+  }catch{return im;}
+}
+function wheelImg(w){ if(!w.foto) return null; let c=imgCache[w.id]; if(!c||c.src!==w.foto){const im=new Image();c={src:w.foto,im,ok:false};im.onload=()=>{c.px=keyBackground(im);c.ok=true;requestRender();renderGrid();renderCatalog();};im.src=w.foto;imgCache[w.id]=c;} return c.ok?c.px:null; }
+function circ(ctx,r){ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);}
+function spoke(ctx,a0,a1,r0,r1,w0,w1,curve=0){
+  const p=(a,r)=>[Math.cos(a)*r,Math.sin(a)*r];
+  const n0=[-Math.sin(a0),Math.cos(a0)],n1=[-Math.sin(a1),Math.cos(a1)];
+  const c0=p(a0,r0),c1=p(a1,r1);
+  const am=(a0+a1)/2,rm=(r0+r1)/2,cm=p(am,rm),nm=[-Math.sin(am),Math.cos(am)];
+  const wm=(w0+w1)/2;
+  ctx.moveTo(c0[0]+n0[0]*w0,c0[1]+n0[1]*w0);
+  ctx.quadraticCurveTo(cm[0]+nm[0]*(wm+curve),cm[1]+nm[1]*(wm+curve),c1[0]+n1[0]*w1,c1[1]+n1[1]*w1);
+  ctx.lineTo(c1[0]-n1[0]*w1,c1[1]-n1[1]*w1);
+  ctx.quadraticCurveTo(cm[0]-nm[0]*(wm-curve),cm[1]-nm[1]*(wm-curve),c0[0]-n0[0]*w0,c0[1]-n0[1]*w0);
+  ctx.closePath();
+}
+function stylePath(ctx,st){
+  const T=Math.PI*2;ctx.beginPath();
+  if(st==="vertice"){for(let i=0;i<5;i++){const a=i*T/5;spoke(ctx,a-.07,a-.13,.24,.9,.03,.04);spoke(ctx,a+.07,a+.13,.24,.9,.03,.04);}}
+  else if(st==="lamina"){for(let i=0;i<5;i++){const a=i*T/5;spoke(ctx,a,a-.2,.24,.9,.065,.05);spoke(ctx,a,a+.2,.24,.9,.065,.05);}}
+  else if(st==="colmeia"){for(let i=0;i<10;i++){const a=i*T/10;spoke(ctx,a,a+.55,.26,.9,.018,.02,.02);spoke(ctx,a,a-.55,.26,.9,.018,.02,-.02);}}
+  else if(st==="tufao"){for(let i=0;i<12;i++){const a=i*T/12;spoke(ctx,a,a+.42,.25,.9,.03,.065,.07);}}
+  else if(st==="arena"){for(let i=0;i<6;i++){const a=i*T/6;spoke(ctx,a,a,.24,.9,.06,.13);}}
+  else if(st==="cometa"){for(let i=0;i<15;i++){const a=i*T/15;spoke(ctx,a,a,.25,.9,.017,.03);}}
+  else if(st==="trilha"){for(let i=0;i<6;i++){const a=i*T/6;spoke(ctx,a,a,.24,.9,.085,.1);}}
+  else if(st==="malha"){ // raios principais + malha cruzada formando losangos
+    for(let i=0;i<10;i++){const a=i*T/10;spoke(ctx,a,a,.26,.82,.042,.036);}
+    for(let i=0;i<20;i++){const a=(i+.5)*T/20;spoke(ctx,a,a+.34,.3,.82,.017,.021,.015);spoke(ctx,a,a-.34,.3,.82,.017,.021,-.015);}
+  }
+  else if(st==="rally"){ctx.arc(0,0,.88,0,T);for(let i=0;i<8;i++){const a=i*T/8+T/16,x=Math.cos(a)*.58,y=Math.sin(a)*.58;ctx.moveTo(x+.12,y);ctx.arc(x,y,.12,0,T,true);}}
+  else {for(let i=0;i<5;i++){const a=i*T/5;spoke(ctx,a,a,.24,.9,.05,.07);}}
+}
+// raio 1 = borda externa da roda (aro). rot em radianos.
+// disco de freio ventilado + pinça com pastilha (o disco gira com a roda, a pinça fica parada)
+function drawBrake(ctx,lugs,rot){
+  const T=Math.PI*2,R=.64;
+  // pista do disco (ferro fundido, levemente polido) — a luz é fixa, não gira com a roda
+  let g=ctx.createRadialGradient(-.18,-.22,.05,0,0,R);g.addColorStop(0,"#a2a8ae");g.addColorStop(.55,"#868c93");g.addColorStop(1,"#5e636a");
+  circ(ctx,R);ctx.fillStyle=g;ctx.fill();
+  ctx.save();ctx.rotate(rot);
+  // marcas circulares de uso
+  ctx.lineWidth=.004;for(let r=.36;r<R-.01;r+=.022){ctx.beginPath();ctx.arc(0,0,r,0,T);ctx.strokeStyle=`rgba(${r%0.044<0.022?"255,255,255":"0,0,0"},.07)`;ctx.stroke();}
+  // ranhuras
+  ctx.strokeStyle="rgba(30,32,36,.55)";ctx.lineWidth=.012;ctx.lineCap="round";
+  for(let i=0;i<6;i++){const a=i*T/6;ctx.beginPath();ctx.arc(0,0,.5,a,a+.55);ctx.stroke();}
+  // borda externa (canal de ventilação)
+  circ(ctx,R);ctx.lineWidth=.02;ctx.strokeStyle="#2b2e33";ctx.stroke();
+  // chapéu do disco (parte central, mais escura)
+  g=ctx.createRadialGradient(0,0,.05,0,0,.34);g.addColorStop(0,"#5d6268");g.addColorStop(1,"#33373c");
+  circ(ctx,.34);ctx.fillStyle=g;ctx.fill();
+  circ(ctx,.34);ctx.lineWidth=.012;ctx.strokeStyle="#22252a";ctx.stroke();
+  for(let i=0;i<lugs;i++){const a=i*T/lugs-Math.PI/2;ctx.beginPath();ctx.arc(Math.cos(a)*.17,Math.sin(a)*.17,.03,0,T);ctx.fillStyle="#1d2024";ctx.fill();}
+  circ(ctx,.085);ctx.fillStyle="#2a2d32";ctx.fill();
+  ctx.restore();
+  // pinça (fixa, na parte de trás/de cima do disco) com pastilha
+  const a0=-1.25,a1=-.25; // ângulos da pinça
+  ctx.save();
+  ctx.beginPath();ctx.arc(0,0,R+.05,a0,a1);ctx.arc(0,0,R-.17,a1,a0,true);ctx.closePath();
+  g=ctx.createLinearGradient(.2,-.7,.6,-.1);g.addColorStop(0,"#6a7078");g.addColorStop(1,"#2e3237");ctx.fillStyle=g;ctx.fill();
+  ctx.lineWidth=.012;ctx.strokeStyle="#0f1012";ctx.stroke();
+  // pastilha (faixa escura contra a pista do disco)
+  ctx.beginPath();ctx.arc(0,0,R-.015,a0+.1,a1-.1);ctx.arc(0,0,R-.15,a1-.1,a0+.1,true);ctx.closePath();ctx.fillStyle="rgba(10,10,12,.55)";ctx.fill();
+  // brilho e parafusos da pinça
+  ctx.beginPath();ctx.arc(0,0,R+.03,a0+.08,a1-.08);ctx.lineWidth=.012;ctx.strokeStyle="rgba(255,255,255,.18)";ctx.stroke();
+  for(const a of [a0+.12,a1-.12]){ctx.beginPath();ctx.arc(Math.cos(a)*(R-.07),Math.sin(a)*(R-.07),.022,0,T);ctx.fillStyle="#6b7077";ctx.fill();}
+  ctx.restore();
+}
+function drawRim(ctx,w,lugs,rot){
+  const f=FINISHES[w.acabamento]||FINISHES.prata;const T=Math.PI*2;
+  // fundo / barril (lado de dentro do aro)
+  // barril interno: metal acinzentado com luz vinda de cima (sem "buraco preto" na parte de baixo)
+  let g=ctx.createRadialGradient(0,0,.3,0,0,1);g.addColorStop(0,"#3a3e44");g.addColorStop(.7,"#34383d");g.addColorStop(.9,"#4a4e54");g.addColorStop(1,"#1e2023");
+  circ(ctx,1);ctx.fillStyle=g;ctx.fill();
+  g=ctx.createLinearGradient(0,-1,0,1);g.addColorStop(0,"rgba(255,255,255,.10)");g.addColorStop(.5,"rgba(255,255,255,0)");g.addColorStop(1,"rgba(0,0,0,.10)");
+  circ(ctx,1);ctx.fillStyle=g;ctx.fill();
+  drawBrake(ctx,lugs,rot);
+  ctx.save();ctx.rotate(rot);
+  const im=wheelImg(w);
+  if(im){ctx.save();circ(ctx,.995);ctx.clip();ctx.drawImage(im,-1,-1,2,2);ctx.restore();ctx.restore();lipShine(ctx);return;}
+  // raios
+  stylePath(ctx,w.estilo);
+  const sg=ctx.createLinearGradient(-1,-1,1,1);sg.addColorStop(0,f.hi);sg.addColorStop(.45,f.base);sg.addColorStop(1,f.lo);
+  ctx.fillStyle=sg;ctx.fill(w.estilo==="rally"?"evenodd":"nonzero");
+  ctx.lineWidth=f.ew;ctx.strokeStyle=f.edge;ctx.lineJoin="round";ctx.stroke();
+  if(w.estilo==="arena"){ // sombra côncava
+    const cg=ctx.createRadialGradient(0,0,.2,0,0,.9);cg.addColorStop(0,"rgba(0,0,0,.35)");cg.addColorStop(.6,"rgba(0,0,0,0)");
+    stylePath(ctx,"arena");ctx.fillStyle=cg;ctx.fill();
+  }
+  // aba (nas bipartidas: aba larga polida com degrau e rebites)
+  const two=STYLES[w.estilo]?.twoPiece,lipIn=two?.8:.86;
+  ctx.beginPath();ctx.arc(0,0,1,0,T);ctx.arc(0,0,lipIn,0,T,true);
+  const lipC=two?["#f4f6f8","#5f666e"]:f.lip;
+  const lg=ctx.createLinearGradient(-1,-1,1,1);lg.addColorStop(0,lipC[0]);lg.addColorStop(.5,lipC[1]);lg.addColorStop(1,lipC[0]);
+  if(two){lg.addColorStop(.25,"#c9ced3");lg.addColorStop(.75,"#d9dde1");}
+  ctx.fillStyle=lg;ctx.fill("evenodd");
+  circ(ctx,lipIn);ctx.lineWidth=.018;ctx.strokeStyle="rgba(0,0,0,.45)";ctx.stroke();
+  if(two){circ(ctx,.93);ctx.lineWidth=.008;ctx.strokeStyle="rgba(0,0,0,.25)";ctx.stroke();
+    for(let i=0;i<30;i++){const a=i*T/30;const x=Math.cos(a)*.835,y=Math.sin(a)*.835;ctx.beginPath();ctx.arc(x,y,.012,0,T);ctx.fillStyle="#e9ecef";ctx.fill();ctx.lineWidth=.004;ctx.strokeStyle="rgba(0,0,0,.4)";ctx.stroke();}}
+  if(w.estilo==="trilha"){ctx.fillStyle="#c9ced3";for(let i=0;i<20;i++){const a=i*T/20;ctx.beginPath();ctx.arc(Math.cos(a)*.93,Math.sin(a)*.93,.018,0,T);ctx.fill();}}
+  // cubo
+  g=ctx.createLinearGradient(-.3,-.3,.3,.3);g.addColorStop(0,f.hi);g.addColorStop(1,f.lo);
+  circ(ctx,.27);ctx.fillStyle=g;ctx.fill();ctx.lineWidth=.012;ctx.strokeStyle=f.edge;ctx.stroke();
+  for(let i=0;i<lugs;i++){const a=i*T/lugs-Math.PI/2;const x=Math.cos(a)*.155,y=Math.sin(a)*.155;
+    ctx.beginPath();ctx.arc(x,y,.04,0,T);const ng=ctx.createRadialGradient(x-.012,y-.012,.004,x,y,.04);ng.addColorStop(0,"#ffffff");ng.addColorStop(1,"#7d848c");ctx.fillStyle=ng;ctx.fill();
+    ctx.beginPath();ctx.arc(x,y,.016,0,T);ctx.fillStyle="#3b4047";ctx.fill();}
+  circ(ctx,.085);ctx.fillStyle=f.cap;ctx.fill();ctx.lineWidth=.012;ctx.strokeStyle="rgba(255,255,255,.35)";ctx.stroke();
+  ctx.restore();
+  lipShine(ctx);
+}
+function lipShine(ctx){ctx.beginPath();ctx.arc(0,0,.95,-2.6,-1.2);ctx.lineWidth=.035;ctx.strokeStyle="rgba(255,255,255,.28)";ctx.stroke();}
+// pneu com aparência de borracha real: flanco abaulado iluminado de cima, ombro com blocos da banda,
+// sombra na junção com a roda e inscrição da medida em relevo (gira junto com a roda)
+function drawTire(ctx,rimRatio,rot=0,label=""){
+  const T=Math.PI*2,rr=rimRatio,mid=(rr+1)/2,sw=1-rr;
+  // borracha base
+  let g=ctx.createRadialGradient(0,0,rr,0,0,1);
+  g.addColorStop(0,"#262628");g.addColorStop(.35,"#2d2e30");g.addColorStop(.7,"#232325");g.addColorStop(.93,"#18181a");g.addColorStop(1,"#0c0c0d");
+  circ(ctx,1);ctx.fillStyle=g;ctx.fill();
+  // luz ambiente vinda de cima (flanco de cima mais claro, de baixo mais escuro)
+  ctx.save();circ(ctx,1);ctx.arc(0,0,rr,0,T,true);ctx.clip("evenodd");
+  g=ctx.createLinearGradient(0,-1,0,1);g.addColorStop(0,"rgba(255,255,255,.075)");g.addColorStop(.45,"rgba(255,255,255,.015)");g.addColorStop(.75,"rgba(0,0,0,.12)");g.addColorStop(1,"rgba(0,0,0,.32)");
+  ctx.fillStyle=g;ctx.fillRect(-1,-1,2,2);
+  // abaulado do flanco: brilho suave na parte de cima/esquerda
+  ctx.lineCap="round";
+  for(const [r,a,w] of [[rr+sw*.42,.06,sw*.32],[rr+sw*.42,.05,sw*.16]]){
+    ctx.beginPath();ctx.arc(0,0,r,-2.75,-.55);ctx.lineWidth=w;ctx.strokeStyle=`rgba(255,255,255,${a})`;ctx.stroke();}
+  // reflexo inferior fraco (luz do chão)
+  ctx.beginPath();ctx.arc(0,0,rr+sw*.45,.5,2.6);ctx.lineWidth=sw*.18;ctx.strokeStyle="rgba(255,255,255,.025)";ctx.stroke();
+  ctx.restore();
+  // ombro e blocos da banda visíveis na borda
+  ctx.save();ctx.rotate(rot);
+  circ(ctx,.995);ctx.lineWidth=.012;ctx.strokeStyle="rgba(0,0,0,.55)";ctx.stroke();
+  ctx.lineWidth=.022;ctx.strokeStyle="rgba(255,255,255,.035)";
+  for(let i=0;i<72;i++){const a=i*T/72;ctx.beginPath();ctx.moveTo(Math.cos(a)*.955,Math.sin(a)*.955);ctx.lineTo(Math.cos(a+.02)*.985,Math.sin(a+.02)*.985);ctx.stroke();}
+  circ(ctx,.95);ctx.lineWidth=.006;ctx.strokeStyle="rgba(255,255,255,.05)";ctx.stroke();
+  // inscrição em relevo no flanco (tom sobre tom)
+  if(label){
+    ctx.save();ctx.scale(.01,.01);ctx.font="600 6.5px Arial, sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";
+    const R=mid*100,txt=label.toUpperCase(),step=4.6/R;
+    for(const base of [-Math.PI/2,Math.PI/2]){
+      let a0=base-(txt.length-1)*step/2;
+      for(const ch of txt){ctx.save();ctx.rotate(a0);ctx.translate(R,0);ctx.rotate(Math.PI/2);
+        ctx.fillStyle="rgba(0,0,0,.35)";ctx.fillText(ch,.25,.25);ctx.fillStyle="rgba(255,255,255,.07)";ctx.fillText(ch,0,0);ctx.restore();a0+=step;}
+    }
+    ctx.restore();
+  }
+  ctx.restore();
+  // junção pneu/roda: sombra fina e o "talão" de borracha que cobre a aba
+  circ(ctx,rr+.012);ctx.lineWidth=.03;ctx.strokeStyle="rgba(0,0,0,.6)";ctx.stroke();
+  circ(ctx,rr+.03);ctx.lineWidth=.008;ctx.strokeStyle="rgba(255,255,255,.06)";ctx.stroke();
+}
+// k = {cx,cy,rx,ry,tilt(rad),band(-1 esquerda | 0 | 1 direita)}: elipse da face externa do pneu na imagem
+function drawWheelAt(ctx,k,w,tire,lugs,rot,cover=1){
+  // diâmetro visível da roda = aro + aba/flange e o abaulado do pneu sobre ela (como aparece numa foto real)
+  const rimMm=w.aro*25.4,side=(tire.d-rimMm)/2;
+  const rimRatio=Math.min(.86,(rimMm+2*Math.min(38,.32*side))/tire.d);
+  const rx=k.rx*cover,ry=k.ry*cover;
+  // perspectiva: quanto mais estreita a elipse, mais a banda de rodagem aparece
+  const ratio=Math.min(1,rx/ry),sinYaw=Math.sqrt(Math.max(0,1-ratio*ratio));
+  const off=(k.band||0)*(tire.w/(tire.d/2))*ry*sinYaw*.72;
+  ctx.save();ctx.translate(k.cx,k.cy);ctx.rotate(k.tilt||0);
+  if(k.arch){ // o para-lama esconde a parte de cima do pneu: só desenha dentro da caixa de roda ou abaixo do cubo
+    const left=Math.min(-rx,off-rx),right=Math.max(rx,off+rx);
+    ctx.beginPath();ctx.ellipse(0,0,rx*k.arch,ry*k.arch,0,0,Math.PI*2);ctx.rect(left-2,0,right-left+4,ry*1.3);ctx.clip();
+  }
+  if(Math.abs(off)>.5){
+    const steps=Math.max(6,Math.ceil(Math.abs(off)/2));
+    for(let i=steps;i>=1;i--){const t=i/steps;ctx.save();ctx.translate(off*t,0);ctx.scale(rx,ry);circ(ctx,1);
+      const l=Math.round(10+16*(1-t));ctx.fillStyle=`rgb(${l},${l},${l+1})`;ctx.fill();ctx.restore();}
+    // sulcos da banda
+    ctx.save();ctx.strokeStyle="rgba(255,255,255,.05)";ctx.lineWidth=1.2;
+    for(const t of [.3,.55,.8]){ctx.save();ctx.translate(off*t,0);ctx.scale(rx,ry);circ(ctx,.995);ctx.restore();ctx.stroke();}
+    ctx.restore();
+  }
+  // sombra de contato no chão
+  {const sg=ctx.createRadialGradient(0,ry*.985,0,0,ry*.985,rx*.95);sg.addColorStop(0,"rgba(0,0,0,.55)");sg.addColorStop(1,"rgba(0,0,0,0)");
+   ctx.save();ctx.translate(0,ry*.985);ctx.scale(1,.09);ctx.translate(0,-ry*.985);ctx.fillStyle=sg;ctx.beginPath();ctx.arc(0,ry*.985,rx*.95,0,Math.PI*2);ctx.fill();ctx.restore();}
+  // pneu carregado: a base fica levemente achatada onde toca o chão
+  ctx.beginPath();ctx.rect(-rx*2,-ry*2,rx*4,ry*2+ry*.985);ctx.clip();
+  ctx.save();ctx.scale(rx,ry);drawTire(ctx,rimRatio,rot,tire.str||"");
+  // a roda fica um pouco recuada em relação ao flanco do pneu
+  ctx.translate((off*.12)/rx,0);ctx.scale(rimRatio,rimRatio);drawRim(ctx,w,lugs,rot);
+  ctx.restore();
+  ctx.restore();
+}
+/* ---- Render sobre a foto real: mantém o pneu da foto e troca só a roda ---- */
+// diâmetro visível da roda (aro + aba) em mm, para um pneu de diâmetro externo d
+const visMm=(aro,d)=>{const r=aro*25.4,side=(d-r)/2;return r+2*Math.min(38,.32*side);};
+// leitura de pixels da foto (cache): usada para medir luz/cor da cena e a cor da borracha original
+function photoPx(p){
+  if(p.px!==undefined)return p.px;
+  try{const c=document.createElement("canvas");c.width=p.w;c.height=p.h;const x=c.getContext("2d");x.drawImage(p.canvas,0,0,p.w,p.h);p.px=x.getImageData(0,0,p.w,p.h);}catch{p.px=null;}
+  return p.px;
+}
+function sceneTone(p){
+  if(p.tone)return p.tone;
+  let t={y:.5,r:128,g:128,b:128};const im=photoPx(p);
+  if(im){let r=0,g=0,b=0,n=0;const st=Math.max(1,Math.floor(im.data.length/4/4000))*4;
+    for(let i=0;i<im.data.length;i+=st){r+=im.data[i];g+=im.data[i+1];b+=im.data[i+2];n++;}
+    if(n){r/=n;g/=n;b/=n;t={y:(.2126*r+.7152*g+.0722*b)/255,r,g,b};}}
+  return p.tone=t;
+}
+// cor média do flanco do pneu original (anel entre a roda original e a borda do pneu)
+function tireTone(p,k,r0){
+  const key=[k.cx,k.cy,k.rx,k.ry,(k.tilt||0)*100,r0*100].map(v=>Math.round(v)).join();
+  p.ring=p.ring||{};if(p.ring[key])return p.ring[key];
+  let out=[26,26,28];const im=photoPx(p);
+  if(im){let r=0,g=0,b=0,n=0;const co=Math.cos(k.tilt||0),si=Math.sin(k.tilt||0),rr=(r0+1)/2;
+    for(let i=0;i<24;i++){const a=i*Math.PI*2/24,lx=Math.cos(a)*rr*k.rx,ly=Math.sin(a)*rr*k.ry;
+      const x=Math.round(k.cx+lx*co-ly*si),y=Math.round(k.cy+lx*si+ly*co);
+      if(x<0||y<0||x>=im.width||y>=im.height)continue;const o=(y*im.width+x)*4;r+=im.data[o];g+=im.data[o+1];b+=im.data[o+2];n++;}
+    if(n>=6)out=[r/n,g/n,b/n];}
+  return p.ring[key]=out;
+}
+// k = elipse do pneu na foto {cx,cy,rx,ry,tilt,arch}; lado = +1/-1: para que lado (eixo menor) fica o interior do carro
+function drawWheelPhoto(ctx,k,w,tire,lugs,rot,cover,P,lado){
+  const g=gen(),refD=derive(g).refD,o=g.oem[g.oem.length-1];
+  const rN=Math.min(.9,visMm(w.aro,tire.d)/refD)*cover;   // roda nova, relativa ao pneu que aparece na foto
+  const rO=Math.min(.9,visMm(o[0],refD)/refD);               // roda original que está na foto
+  const rx=k.rx,ry=k.ry,ratio=Math.min(1,rx/ry),sinYaw=Math.sqrt(Math.max(0,1-ratio*ratio));
+  // perspectiva: o centro da roda fica recuado em relação ao flanco do pneu, na direção do eixo menor da elipse
+  const dx=(lado<0?-1:1)*ry*sinYaw*.11;
+  ctx.save();ctx.translate(k.cx,k.cy);ctx.rotate(k.tilt||0);
+  if(k.arch){
+    ctx.beginPath();ctx.ellipse(0,0,rx*k.arch,ry*k.arch,0,0,Math.PI*2);ctx.rect(-rx*k.arch-Math.abs(dx)-2,0,2*(rx*k.arch+Math.abs(dx))+4,ry*1.3);ctx.clip();
+  }
+  // roda nova menor que a original: cobre a borda da roda antiga com a borracha do próprio pneu da foto
+  if(rN<rO){
+    const c=tireTone(P,k,rO),a=`rgb(${c[0]|0},${c[1]|0},${c[2]|0})`,d=`rgb(${c[0]*.55|0},${c[1]*.55|0},${c[2]*.55|0})`;
+    ctx.save();ctx.translate(dx,0);ctx.scale(rx*rO*1.05,ry*rO*1.05);
+    const f=ctx.createRadialGradient(0,0,rN/(rO*1.05)*.9,0,0,1);f.addColorStop(0,d);f.addColorStop(1,a);
+    circ(ctx,1);ctx.fillStyle=f;ctx.fill();ctx.restore();
+  }
+  // sombra fina na junção pneu/roda
+  ctx.save();ctx.translate(dx,0);ctx.scale(rx*rN,ry*rN);circ(ctx,1.015);ctx.lineWidth=.04;ctx.strokeStyle="rgba(0,0,0,.5)";ctx.stroke();ctx.restore();
+  // a roda é desenhada à parte para receber a luz da cena (sombra do para-lama, exposição e tom da foto)
+  const T=Math.ceil(Math.max(rx,ry)*rN*2.1)+6,tc=P._rc||(P._rc=document.createElement("canvas"));
+  if(tc.width<T||tc.height<T){tc.width=tc.height=T;}
+  const t=tc.getContext("2d");t.setTransform(1,0,0,1,0,0);t.clearRect(0,0,tc.width,tc.height);
+  t.save();t.translate(T/2,T/2);t.scale(rx*rN,ry*rN);drawRim(t,w,lugs,rot);t.restore();
+  const tone=sceneTone(P),dim=Math.max(0,Math.min(.35,(.5-tone.y)*.8)),R=ry*rN;
+  t.globalCompositeOperation="source-atop";
+  if(dim>0){t.fillStyle=`rgba(0,0,0,${dim})`;t.fillRect(0,0,T,T);}
+  t.fillStyle=`rgba(${tone.r|0},${tone.g|0},${tone.b|0},.09)`;t.fillRect(0,0,T,T);
+  const sg=t.createLinearGradient(0,T/2-R,0,T/2+R);sg.addColorStop(0,"rgba(0,0,0,.32)");sg.addColorStop(.35,"rgba(0,0,0,.06)");sg.addColorStop(.7,"rgba(0,0,0,0)");sg.addColorStop(1,"rgba(0,0,0,.2)");
+  t.fillStyle=sg;t.fillRect(0,0,T,T);
+  t.globalCompositeOperation="source-over";
+  ctx.drawImage(tc,0,0,T,T,dx-T/2,-T/2,T,T);
+  ctx.restore();
+}
+function drawThumb(cv,w,lugs){
+  const ctx=cv.getContext("2d");const s=cv.width;ctx.clearRect(0,0,s,s);
+  ctx.save();ctx.translate(s/2,s/2);ctx.scale(s*.44,s*.44);drawRim(ctx,w,lugs,0);ctx.restore();
+}
+
+/* ======================= CENA ======================= */
+const cv=$("#stage"),ctx=cv.getContext("2d");
+let off=document.createElement("canvas");
+function css(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim();}
+function shade(hex,amt){const n=parseInt(hex.slice(1),16);let r=n>>16,g=n>>8&255,b=n&255;const t=amt<0?0:255,p=Math.abs(amt);r=Math.round((t-r)*p+r);g=Math.round((t-g)*p+g);b=Math.round((t-b)*p+b);return `rgb(${r},${g},${b})`;}
+function smoothPath(c,pts){
+  c.beginPath();const n=pts.length;const mid=(a,b)=>[(a[0]+b[0])/2,(a[1]+b[1])/2];
+  let m=mid(pts[n-1],pts[0]);c.moveTo(m[0],m[1]);
+  for(let i=0;i<n;i++){const p=pts[i],q=pts[(i+1)%n],mm=mid(p,q);c.quadraticCurveTo(p[0],p[1],mm[0],mm[1]);}
+  c.closePath();
+}
+function oemWheel(){const g=gen();const o=g.oem[g.oem.length-1];return {id:"oem",nome:"Original",estilo:"cometa",acabamento:"prata",aro:o[0],tala:o[1],et:o[2],pcd:g.pcd,cb:g.cb};}
+function selWheel(){return S.catalog.find(w=>w.id===S.sel)||null;}
+function tireFor(w){const g=gen();return w.id==="oem"?parseTire(g.oem[g.oem.length-1][3]):suggestTire(g,w.aro,w.tala);}
+
+function drawStudio(c,W,H){
+  const g=c.createRadialGradient(W/2,H*.42,H*.1,W/2,H*.5,W*.75);g.addColorStop(0,css("--stage-a"));g.addColorStop(1,css("--stage-b"));
+  c.fillStyle=g;c.fillRect(0,0,W,H);
+  const fy=H*.84;const fg=c.createLinearGradient(0,fy-30,0,H);fg.addColorStop(0,"rgba(0,0,0,0)");fg.addColorStop(1,"rgba(0,0,0,.18)");
+  c.fillStyle=fg;c.fillRect(0,fy-30,W,H-fy+30);
+}
+function drawCarScene(c,W,H,w,rot){
+  drawStudio(c,W,H);
+  const v=veh(),g=gen(),B=BODIES[v.t]||BODIES.hatch,d=derive(g);
+  const CL=W*.78,x0=(W-CL)/2,gy=H*.84,s=CL/B.L;
+  const P=p=>[x0+p[0]*CL,gy-p[1]*CL];
+  const refR=d.refD/2*s;
+  // sombra no chão
+  const sh=c.createRadialGradient(W/2,gy,10,W/2,gy,CL*.55);sh.addColorStop(0,"rgba(0,0,0,.42)");sh.addColorStop(1,"rgba(0,0,0,0)");
+  c.save();c.translate(0,gy);c.scale(1,.07);c.translate(0,-gy);c.fillStyle=sh;c.beginPath();c.arc(W/2,gy,CL*.56,0,Math.PI*2);c.fill();c.restore();
+  const drop=(c._low?LOWER_MM*s:0);
+  c.save();c.translate(0,drop);
+  const body=B.b.map(P);
+  // carroceria
+  smoothPath(c,body);
+  const top=Math.min(...body.map(p=>p[1]));
+  const bg=c.createLinearGradient(0,top,0,gy);bg.addColorStop(0,shade(S.color,.35));bg.addColorStop(.35,S.color);bg.addColorStop(.75,shade(S.color,-.25));bg.addColorStop(1,shade(S.color,-.55));
+  c.fillStyle=bg;c.fill();c.lineWidth=2;c.strokeStyle=shade(S.color,-.6);c.stroke();
+  // caixas de roda
+  c.save();smoothPath(c,body);c.clip();
+  for(const ax of B.ax){const X=x0+ax*CL,Y=gy-refR;c.beginPath();c.arc(X,Y,refR*1.14,0,Math.PI*2);c.fillStyle="#0b0c0d";c.fill();}
+  // linha de cintura
+  const wTop=Math.max(...B.w.map(p=>p[1])),wBot=Math.min(...B.w.map(p=>p[1]));
+  c.beginPath();c.moveTo(x0+CL*.06,gy-(wBot-.03)*CL);c.lineTo(x0+CL*.97,gy-(wBot-.035)*CL);c.lineWidth=2;c.strokeStyle="rgba(255,255,255,.22)";c.stroke();
+  c.restore();
+  // vidros
+  smoothPath(c,B.w.map(P));const wg=c.createLinearGradient(0,gy-wTop*CL,0,gy-wBot*CL);wg.addColorStop(0,"#46525e");wg.addColorStop(1,"#11151a");c.fillStyle=wg;c.fill();
+  // coluna B
+  const wx=B.w.map(p=>p[0]),wMin=Math.min(...wx),wMax=Math.max(...wx);
+  const bx=x0+(wMin+(wMax-wMin)*(v.t==="pickup"||v.t==="pickupG"||v.t==="van"?.62:.42))*CL;
+  if(v.t!=="van"){c.fillStyle=shade(S.color,-.55);c.fillRect(bx-7,gy-wTop*CL,14,(wTop-wBot)*CL);}
+  // portas
+  c.strokeStyle="rgba(0,0,0,.35)";c.lineWidth=2;c.beginPath();c.moveTo(bx,gy-(wBot-.005)*CL);c.lineTo(bx,gy-.1*CL);c.stroke();
+  c.beginPath();c.moveTo(x0+(wMin-.01)*CL,gy-(wBot-.005)*CL);c.lineTo(x0+(wMin+.005)*CL,gy-.1*CL);c.stroke();
+  // retrovisor
+  c.fillStyle=shade(S.color,-.3);c.beginPath();c.ellipse(x0+(wMin+.035)*CL,gy-(wBot+.012)*CL,.022*CL,.012*CL,0,0,Math.PI*2);c.fill();
+  // faróis e lanternas
+  c.fillStyle="#e9eef2";c.beginPath();c.ellipse(x0+.03*CL,gy-.19*CL,.028*CL,.012*CL,-.15,0,Math.PI*2);c.fill();
+  c.fillStyle="#b0262b";c.beginPath();c.ellipse(x0+.982*CL,gy-.215*CL,.012*CL,.02*CL,0,0,Math.PI*2);c.fill();
+  c.restore();
+  // rodas
+  const wsel=w||oemWheel();const tire=tireFor(wsel);const tr=tire.d/2*s;
+  for(const ax of B.ax){const X=x0+ax*CL;drawWheelAt(c,{cx:X,cy:gy-tr,rx:tr,ry:tr,tilt:0,band:0},wsel,tire,d.lugs,rot);}
+}
+const LOWER_MM=30;
+// rebaixa a carroceria: desloca a foto para baixo acima de uma linha de corte (abaixo da soleira); as rodas ficam no chão
+function drawPhotoScene(c,w,rot,low){
+  const p=S.photo;c.drawImage(p.canvas,0,0);
+  const ws=S.wheels;let drop=0;
+  if(low&&ws.length){
+    const refD=derive(gen()).refD;const pxmm=ws.reduce((a,k)=>a+2*k.ry/refD,0)/ws.length;
+    drop=LOWER_MM*pxmm;
+    const cut=Math.min(...ws.map(k=>k.cy+k.ry*.62));
+    c.save();c.beginPath();c.rect(0,0,p.w,cut+drop);c.clip();c.drawImage(p.canvas,0,drop);c.restore();
+  }
+  S.rub=false;
+  if(drop){
+    // as rodas originais da foto ficam no chão: repõe cada pneu original na posição de antes,
+    // só na parte que não fica atrás do para-lama rebaixado
+    for(const k of ws){
+      const arch=Math.max(.6,(k.arch||1.1)-drop/k.ry);
+      c.save();c.translate(k.cx,k.cy);c.rotate(k.tilt||0);
+      c.beginPath();c.ellipse(0,0,k.rx*arch,k.ry*arch,0,0,Math.PI*2);c.rect(-k.rx*1.3,0,k.rx*2.6,k.ry*1.3);c.clip();
+      c.beginPath();c.ellipse(0,0,k.rx*1.06,k.ry*1.04,0,0,Math.PI*2);c.clip();
+      c.rotate(-(k.tilt||0));c.drawImage(p.canvas,-k.cx,-k.cy);c.restore();
+    }
+  }
+  if(!w||S.noSide) return;
+  const tire=tireFor(w),lugs=derive(gen()).lugs;
+  for(const k of ws){
+    let kk=k;
+    if(drop){
+      // o para-lama desce junto: a abertura fica menor; a roda nunca é desenhada por cima da lataria
+      const arch=(k.arch||1.1)-drop/k.ry;const r=tire.d/2/(derive(gen()).refD/2);
+      if(arch<r*1.02+.02)S.rub=true;
+      kk={...k,arch:Math.max(.6,arch)};
+    }
+    if(S.keepTire&&photoPx(p))drawWheelPhoto(c,kk,w,tire,lugs,rot,1.02,p,S.lado);
+    else drawWheelAt(c,kk,w,tire,lugs,rot,1.02);
+  }
+}
+function sceneSize(){return S.photo&&!S.empty?[S.photo.w,S.photo.h]:[1600,1000];}
+// tela inicial: nenhum carro ainda — só o convite para tirar a foto
+function drawEmpty(c,W,H){
+  const g=c.createRadialGradient(W/2,H*.45,H*.08,W/2,H*.5,W*.7);g.addColorStop(0,css("--stage-a")||"#2C2D31");g.addColorStop(1,css("--stage-b")||"#09090A");
+  c.fillStyle=g;c.fillRect(0,0,W,H);
+  // silhueta lateral tracejada
+  c.save();c.translate(W/2,H*.47);c.scale(W/1600,W/1600);
+  c.strokeStyle="rgba(255,255,255,.16)";c.lineWidth=4;c.setLineDash([16,12]);c.lineJoin="round";
+  c.beginPath();c.moveTo(-560,90);c.lineTo(-560,20);c.quadraticCurveTo(-550,-30,-470,-45);c.lineTo(-250,-70);
+  c.quadraticCurveTo(-150,-175,-30,-185);c.lineTo(170,-185);c.quadraticCurveTo(300,-180,390,-75);c.lineTo(520,-55);
+  c.quadraticCurveTo(570,-45,575,20);c.lineTo(575,90);c.stroke();
+  c.beginPath();c.moveTo(-460,95);c.lineTo(-375+125,95);c.moveTo(-375+260,95);c.lineTo(375-125,95);c.moveTo(375+125,95);c.lineTo(560,95);c.stroke();
+  for(const x of [-375,375]){c.beginPath();c.arc(x,95,112,0,Math.PI*2);c.stroke();c.beginPath();c.arc(x,95,62,0,Math.PI*2);c.stroke();}
+  c.setLineDash([]);
+  c.beginPath();c.moveTo(-700,207);c.lineTo(700,207);c.strokeStyle="rgba(255,255,255,.07)";c.lineWidth=2;c.stroke();
+  c.restore();
+  const fs=Math.round(W*.046);
+  c.textAlign="center";c.textBaseline="middle";
+  c.font=`italic 800 ${fs}px ${css("--f-display")||"sans-serif"}`;c.fillStyle="#fff";
+  c.fillText("SEU CARRO APARECERÁ AQUI",W/2,H*.84);
+  c.font=`500 ${Math.round(fs*.42)}px ${css("--f-body")||"sans-serif"}`;c.fillStyle="rgba(255,255,255,.6)";
+  c.fillText("Tire uma foto do carro ou escolha da galeria",W/2,H*.84+fs*.95);
+  c.fillStyle=css("--signal")||"#E3141B";c.fillRect(W/2-fs*.9,H*.84-fs*.95,fs*1.8,Math.max(3,fs*.08));
+}
+function drawScene(c,useNew){
+  const [W,H]=sceneSize();const w=useNew?selWheel():null;
+  if(S.empty){drawEmpty(c,W,H);return;}
+  if(S.photo){drawPhotoScene(c,w,S.rot,useNew&&S.lower);} else {c._low=useNew&&S.lower;drawCarScene(c,W,H,w,S.rot);}
+}
+let raf=0,lastT=0;
+function requestRender(){if(!raf)raf=requestAnimationFrame(frame);}
+function frame(t){
+  raf=0;const dt=lastT?Math.min(64,t-lastT):16;lastT=t;
+  if(S.spin)S.rot-=dt*0.004; // anti-horário
+  const [W,H]=sceneSize();
+  if(cv.width!==W||cv.height!==H){cv.width=W;cv.height=H;}
+  drawScene(ctx,true);
+  if(S.compare){
+    if(off.width!==W||off.height!==H){off.width=W;off.height=H;}
+    const oc=off.getContext("2d");drawScene(oc,false);
+    const sx=Math.round(W*S.split);
+    ctx.save();ctx.beginPath();ctx.rect(0,0,sx,H);ctx.clip();ctx.drawImage(off,0,0);ctx.restore();
+    ctx.fillStyle=css("--signal");ctx.fillRect(sx-2,0,4,H);
+  }
+  $("#lowWarn").hidden=!(S.lower&&S.rub);
+  if(S.spin) raf=requestAnimationFrame(frame); else lastT=0;
+  if(S.adjust) placeHandles();
+}
+
+/* ======================= AJUSTE MANUAL ======================= */
+function placeHandles(){
+  const box=$("#handles");const k=cv.clientWidth/cv.width;
+  if(!S.adjust||!S.photo||S.noSide){box.innerHTML="";return;}
+  if(box.children.length!==S.wheels.length){box.innerHTML=S.wheels.map((_,i)=>`<div class="handle" data-i="${i}" data-k="move" aria-label="Roda ${i+1}: arraste para mover"><i class="kx" data-i="${i}" data-k="rx" aria-label="Largura"></i><i class="ky" data-i="${i}" data-k="ry" aria-label="Altura"></i><b>${i+1}</b></div>`).join("");}
+  S.wheels.forEach((w,i)=>{const el=box.children[i];const rx=w.rx*k,ry=w.ry*k;
+    el.style.left=(w.cx*k-rx)+"px";el.style.top=(w.cy*k-ry)+"px";el.style.width=rx*2+"px";el.style.height=ry*2+"px";
+    el.style.transform=`rotate(${w.tilt||0}rad)`;});
+}
+(function(){
+  let drag=null;
+  $("#handles").addEventListener("pointerdown",e=>{
+    const t=e.target.closest("[data-k]");if(!t)return;e.preventDefault();
+    const i=+t.dataset.i;
+    drag={i,kind:t.dataset.k,x:e.clientX,y:e.clientY,start:{...S.wheels[i]}};
+    try{t.setPointerCapture(e.pointerId);}catch{}
+  });
+  window.addEventListener("pointermove",e=>{
+    if(!drag)return;const w=S.wheels[drag.i];const k=cv.clientWidth/cv.width;
+    if(drag.kind==="move"){w.cx=drag.start.cx+(e.clientX-drag.x)/k;w.cy=drag.start.cy+(e.clientY-drag.y)/k;}
+    else{const r=cv.getBoundingClientRect();const px=(e.clientX-r.left)/k-w.cx,py=(e.clientY-r.top)/k-w.cy;
+      const a=-(w.tilt||0),lx=px*Math.cos(a)-py*Math.sin(a),ly=px*Math.sin(a)+py*Math.cos(a);
+      if(drag.kind==="rx")w.rx=Math.max(10,Math.abs(lx));else w.ry=Math.max(10,Math.abs(ly));}
+    requestRender();
+  });
+  window.addEventListener("pointerup",()=>{if(drag){drag=null;renderAdjRow();}});
+})();
+function renderAdjRow(){
+  const row=$("#adjRow");
+  if(!(S.photo&&S.adjust)){row.hidden=true;row.innerHTML="";return;}
+  row.hidden=false;
+  row.innerHTML=`<p class="lead" style="margin:0">Arraste o círculo até a roda, a bolinha da direita ajusta a largura e a de baixo a altura do pneu. “Para-lama” sobe ou desce o recorte da caixa de roda.</p>`+S.wheels.map((w,i)=>`
+    <div class="adj"><span class="adj-n">Roda ${i+1}</span>
+      <label class="range-row" style="flex:1;min-width:160px">Para-lama<input type="range" min="100" max="145" step="1" value="${Math.round((w.arch||1.1)*100)}" data-arch="${i}" aria-label="Altura do para-lama da roda ${i+1}"></label>
+      <label class="range-row" style="flex:1;min-width:160px">Inclinação<input type="range" min="-40" max="40" step="1" value="${Math.round((w.tilt||0)*180/Math.PI)}" data-tilt="${i}" aria-label="Inclinação da roda ${i+1}"></label></div>`).join("")+`
+    <div class="adj"><span class="adj-n">Foto</span>
+      <button type="button" class="btn ghost" data-lado="1" aria-pressed="${S.lado>0}">Interior do carro: ${S.lado>0?"direita →":"← esquerda"}</button>
+      <button type="button" class="btn ghost" data-keep="1" aria-pressed="${S.keepTire}">Pneu da foto: ${S.keepTire?"mantido":"redesenhado"}</button></div>`;
+}
+
+/* ======================= BIBLIOTECA DE FOTOS LATERAIS ======================= */
+const useCap=n=>(window.claude&&typeof window.claude.use==="function")?window.claude.use(n).catch(()=>null):Promise.resolve(null);
+function loadImage(file){return new Promise((res,rej)=>{const u=URL.createObjectURL(file);const im=new Image();im.onload=()=>{res(im);URL.revokeObjectURL(u);};im.onerror=()=>{rej(new Error("img"));URL.revokeObjectURL(u);};im.src=u;});}
+function loadSrc(src){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=()=>rej(new Error("img"));im.src=src;});}
+function toCanvas(im,max){const iw=im.naturalWidth||im.width,ih=im.naturalHeight||im.height;const sc=Math.min(1,max/Math.max(iw,ih));const c=document.createElement("canvas");c.width=Math.round(iw*sc);c.height=Math.round(ih*sc);c.getContext("2d").drawImage(im,0,0,c.width,c.height);return c;}
+const toBlob=(c,q=.85)=>new Promise(r=>c.toBlob(r,"image/jpeg",q));
+function defaultWheels(W,H){const r=Math.min(W*.09,H*.16);return [{cx:W*.24,cy:H*.72,rx:r,ry:r,tilt:0,band:0,arch:1.1},{cx:W*.76,cy:H*.72,rx:r,ry:r,tilt:0,band:0,arch:1.1}];}
+const viewId=(vid,gi)=>`${vid}-g${gi}`;
+const curViewId=()=>viewId(S.vid,S.gi);
+const fotoCache={};
+// carrega a foto lateral de referência do modelo/geração atual (ou volta ao desenho)
+async function loadView(){
+  if(S.cal)return;
+  const id=curViewId(),meta=S.vistas[id];
+  if(!meta||!S.db){S.photo=null;S.wheels=[];S.viewState=meta?"loading":"none";syncVehicleUI();renderTag();requestRender();return;}
+  const apply=im=>{if(curViewId()!==id||S.cal)return;
+    S.photo={canvas:im,w:meta.w,h:meta.h};
+    S.wheels=(meta.rodas||[]).map(r=>({cx:r.cx,cy:r.cy,rx:r.rx,ry:r.ry,tilt:r.tilt||0,band:0,arch:r.arch||1.1}));
+    S.lado=meta.lado<0?-1:1;S.viewState="ok";syncVehicleUI();renderTag();requestRender();};
+  const c=fotoCache[id];
+  if(c&&c.t===meta.atualizado&&c.im){apply(c.im);return;}
+  S.viewState="loading";S.photo=null;renderTag();requestRender();
+  try{const snap=await S.db.doc("fotos/"+id).get();const d=snap.exists?snap.data():null;
+    if(!d||!d.img){S.viewState="none";renderTag();return;}
+    const im=await loadSrc(d.img);fotoCache[id]={t:meta.atualizado,im};apply(im);
+  }catch{S.viewState="none";renderTag();requestRender();}
+}
+
+/* ======================= IDENTIFICAÇÃO PELA FOTO DO CLIENTE ======================= */
+async function onPhotos(files){
+  files=[...files].filter(f=>f.type.startsWith("image/")).slice(0,3);if(!files.length)return;
+  let imgs;try{imgs=await Promise.all(files.map(loadImage));}catch{toast("Não consegui abrir essa imagem. Tente outra foto.");return;}
+  S.custThumb=toCanvas(imgs[0],240).toDataURL("image/jpeg",.8);
+  identify(imgs);
+}
+function promptFor(n){
+  const list=VEHICLES.map(v=>`${v.id}: ${v.m} ${v.n} — `+v.g.map((g,i)=>`g${i} ${g.a[0]}–${g.a[1]} (${g.nm})`).join(" | ")).join("\n");
+  return `Você recebe ${n>1?n+" fotos":"uma foto"} do mesmo carro, tiradas por um vendedor numa loja de rodas no Brasil. Podem ser de qualquer ângulo.
+Identifique marca, modelo e geração do carro. Escolha o id e a geração da lista abaixo, usando detalhes como faróis, lanternas, grade e para-choques para separar as gerações. Se o carro não estiver na lista, use null em modelo_id e informe marca e modelo mesmo assim. Estime também a cor da carroceria em hexadecimal.
+
+Lista de modelos:
+${list}
+
+Responda SOMENTE com JSON, sem texto fora dele, neste formato:
+{"modelo_id":"onix","geracao":1,"marca":"Chevrolet","modelo":"Onix","ano_estimado":"2021","confianca":0.9,"cor":"#b0b4b8","observacao":"frase curta em português sobre o que confirmou o modelo e a geração"}`;
+}
+function aiErrMsg(e){const code=e&&e.code;return code==="not_granted"?"A leitura por IA não foi autorizada neste aparelho. Escolha o modelo na lista abaixo.":code==="rate_limited"?"Muitas consultas seguidas. Aguarde um minuto ou escolha o modelo na lista.":"Não reconheci o carro. Tente outra foto ou escolha o modelo abaixo.";}
+async function identify(imgs){
+  S.ai={st:"busy"};renderAI();$("#veil").hidden=false;
+  const sample=await useCap("sample");
+  const lim=sample?await sample.limits().catch(()=>null):null;
+  if(!sample||!lim||!lim.images){$("#veil").hidden=true;S.ai={st:"off"};renderAI();return;}
+  const n=Math.min(imgs.length,lim.images.maxCount||1);
+  const blobs=await Promise.all(imgs.slice(0,n).map(im=>toBlob(toCanvas(im,1280))));
+  try{applyAI(await sample.json(promptFor(n),{images:blobs,modelTier:"default"}));}
+  catch(e){S.ai={st:"err",msg:aiErrMsg(e)};renderAI();}
+  finally{$("#veil").hidden=true;}
+}
+function num01(x){x=+x;return Number.isFinite(x)&&x>=0&&x<=1?x:null;}
+function applyAI(r){
+  if(!r||typeof r!=="object"){throw {code:"parse"};}
+  const v=r.modelo_id&&byId[r.modelo_id];
+  if(v){
+    S.empty=false;
+    S.vid=v.id;let gi=Number.isInteger(r.geracao)&&v.g[r.geracao]?r.geracao:-1;
+    if(gi<0){const y=parseInt(String(r.ano_estimado||"").match(/\d{4}/)?.[0]||"0",10);gi=v.g.findIndex(g=>y>=g.a[0]&&y<=g.a[1]);if(gi<0)gi=v.g.length-1;}
+    S.gi=gi;
+  }
+  if(/^#[0-9a-f]{6}$/i.test(r.cor||""))S.color=r.cor;
+  S.ai={st:v?"done":"err",r};
+  if(!v) S.ai.msg=`Parece um ${esc(r.marca||"")} ${esc(r.modelo||"")}, que ainda não está na base dos 50 modelos. Escolha o modelo mais próximo na lista.`;
+  syncVehicleUI();autoPick();loadView();renderAll();renderAI();
+}
+function renderAI(){
+  const box=$("#aiBox"),t=$("#aiText"),a=S.ai;
+  if(!a){box.hidden=true;return;}
+  box.hidden=false;box.className="ai "+(a.st==="busy"?"busy":a.st==="done"?"done":a.st==="err"?"err":"");
+  const th=S.custThumb?`<img src="${S.custThumb}" alt="Foto do cliente" class="cust">`:"";
+  let html="";
+  if(a.st==="busy")html="<b>Identificando o modelo…</b>";
+  else if(a.st==="off"){html="<b>Foto recebida.</b> Escolha o modelo manualmente.";$("#manualRow").hidden=false;}
+  else if(a.st==="err"){html=a.msg||"Não consegui identificar o carro.";$("#manualRow").hidden=false;}
+  else{const r=a.r,v=veh(),g=gen();const conf=Math.round((+r.confianca||0)*100);
+    html=`<b>${esc(v.m)} ${esc(v.n)}</b> <span class="muted">${g.a[0]}–${g.a[1]}</span>${conf?`<div class="conf">Precisão ${conf}%</div>`:""}`;}
+  t.innerHTML=`<div class="ai-row">${th}<div>${html}</div></div>`;
+}
+
+/* ======================= CONFIGURAÇÃO DA BIBLIOTECA (#calibrar) ======================= */
+// 1ª leitura numa foto lateral: caixas das duas rodas
+function calPrompt(){return `A imagem é uma foto lateral (perfil) de um carro. Dê a caixa que envolve cada uma das DUAS rodas visíveis, pneu inteiro com a borracha, em coordenadas de 0 a 1 relativas à largura (x) e à altura (y) da imagem: x0,y0 canto superior esquerdo, x1,y1 canto inferior direito. Ordene da esquerda para a direita.
+Responda SOMENTE com JSON: {"rodas":[{"x0":0.12,"y0":0.58,"x1":0.27,"y1":0.86},{"x0":0.7,"y0":0.58,"x1":0.85,"y1":0.86}]}`;}
+// 2ª leitura: recorta cada roda em alta resolução e marca cubo, chão, flancos e para-lama
+async function refineWheels(sample,lim,P,wheels){
+  const max=Math.max(1,lim.images.maxCount||1);const list0=wheels.slice(0,Math.min(2,max));const SZ=640;
+  const crops=list0.map(w=>{
+    const s=Math.round(Math.max(w.rx,w.ry)*2.6),x0=Math.round(w.cx-s/2),y0=Math.round(w.cy-s/2);
+    const c=document.createElement("canvas");c.width=c.height=SZ;const g=c.getContext("2d");g.fillStyle="#808080";g.fillRect(0,0,SZ,SZ);
+    const sx=Math.max(0,x0),sy=Math.max(0,y0),ex=Math.min(P.w,x0+s),ey=Math.min(P.h,y0+s);
+    if(ex>sx&&ey>sy)g.drawImage(P.canvas,sx,sy,ex-sx,ey-sy,(sx-x0)/s*SZ,(sy-y0)/s*SZ,(ex-sx)/s*SZ,(ey-sy)/s*SZ);
+    return {c,x0,y0,s};
+  });
+  const blobs=await Promise.all(crops.map(k=>toBlob(k.c,.9)));
+  const prompt=`Cada uma das ${blobs.length} imagens é um recorte quadrado centrado aproximadamente numa roda de carro fotografado de lado (ordem 0${blobs.length>1?" e 1":""}). Em cada recorte, marque estes pontos, com coordenadas x e y de 0 a 1 relativas à largura e à altura do recorte (0,0 = canto superior esquerdo):
+- cubo: o centro da roda (meio da calota ou do cubo, onde ficam os parafusos);
+- chao: o ponto mais baixo da borracha do pneu, onde ele toca o chão;
+- esquerda: o ponto mais à esquerda da borracha do pneu, na altura do cubo;
+- direita: o ponto mais à direita da borracha do pneu, na altura do cubo;
+- para_lama: o ponto mais alto da abertura da caixa de roda, isto é, a borda da lataria logo acima do pneu;
+- interior: "esquerda" ou "direita", o lado da imagem para onde fica o interior do carro em relação a essa roda (para onde o carro se afasta da face visível do pneu); se a foto for de perfil reto, use "centro".
+Seja preciso: esses pontos definem onde as rodas novas serão desenhadas.
+Responda SOMENTE com JSON: {"rodas":[{"cubo":{"x":0.5,"y":0.48},"chao":{"x":0.5,"y":0.82},"esquerda":{"x":0.17,"y":0.48},"direita":{"x":0.83,"y":0.48},"para_lama":{"x":0.5,"y":0.1},"interior":"direita"}]}`;
+  const r=await sample.json(prompt,{images:blobs,modelTier:"complex"});
+  const list=Array.isArray(r&&r.rodas)?r.rodas:[];let ok=0;
+  const pt=(p,k)=>{if(!p)return null;const x=num01(p.x),y=num01(p.y);return x===null||y===null?null:{x:k.x0+x*k.s,y:k.y0+y*k.s};};
+  list.slice(0,crops.length).forEach((q,i)=>{
+    const k=crops[i];const c=pt(q.cubo,k),b=pt(q.chao,k),l=pt(q.esquerda,k),rr=pt(q.direita,k),f=pt(q.para_lama,k);
+    if(!c||!b)return;
+    const ry=b.y-c.y;if(!(ry>k.s*.08))return;
+    const w=wheels[i];w.cx=c.x;w.cy=c.y;w.ry=ry;w.tilt=0;w.band=0;
+    w.rx=(l&&rr&&rr.x>l.x)?Math.max(ry*.3,Math.min(ry*1.08,(rr.x-l.x)/2)):ry;
+    if(i===0&&(q.interior==="esquerda"||q.interior==="direita"))S.lado=q.interior==="esquerda"?-1:1;
+    if(f&&f.y<c.y){const a=(c.y-f.y)/ry;w.arch=Math.max(1.0,Math.min(1.45,a));}
+    ok++;
+  });
+  return ok>0;
+}
+async function onCalFile(file){
+  if(!file)return;let im;try{im=await loadImage(file);}catch{toast("Não consegui abrir essa foto.");return;}
+  const canvas=toCanvas(im,1600);
+  S.cal={isNew:true,canvas};S.photo={canvas,w:canvas.width,h:canvas.height};S.wheels=defaultWheels(canvas.width,canvas.height);
+  S.adjust=true;syncButtons();syncVehicleUI();renderTag();requestRender();renderCal();
+  const msg=$("#calMsg");msg.style.color="var(--muted)";msg.textContent="Marcando as rodas com a IA…";$("#veil").hidden=false;
+  const sample=await useCap("sample");const lim=sample?await sample.limits().catch(()=>null):null;
+  if(!sample||!lim||!lim.images){$("#veil").hidden=true;msg.textContent="Arraste os círculos até as rodas.";return;}
+  try{
+    const P=S.photo,r=await sample.json(calPrompt(),{images:await toBlob(toCanvas(canvas,1280)),modelTier:"default"});
+    const ws=(Array.isArray(r&&r.rodas)?r.rodas:[]).map(b=>{const x0=num01(b.x0),y0=num01(b.y0),x1=num01(b.x1),y1=num01(b.y1);if([x0,y0,x1,y1].some(q=>q===null)||x1<=x0||y1<=y0)return null;
+      const rx=(x1-x0)/2*P.w,ry=(y1-y0)/2*P.h;return {cx:(x0+x1)/2*P.w,cy:(y0+y1)/2*P.h,rx,ry,tilt:0,band:0,arch:1.1};}).filter(Boolean).sort((a,b)=>a.cx-b.cx).slice(0,2);
+    if(S.cal&&S.cal.canvas===canvas&&ws.length===2){S.wheels=ws;requestRender();await refineWheels(sample,lim,P,S.wheels).catch(()=>false);}
+    msg.textContent="Rodas marcadas. Confira os círculos e salve.";
+  }catch(e){msg.textContent="Não consegui marcar sozinho: arraste os círculos até as rodas.";}
+  finally{$("#veil").hidden=true;renderAdjRow();requestRender();}
+}
+function cropAndEncode(){
+  const P=S.photo,ws=S.wheels;const r=Math.max(...ws.map(w=>w.ry));
+  const x0=Math.max(0,Math.min(...ws.map(w=>w.cx))-2.7*r),x1=Math.min(P.w,Math.max(...ws.map(w=>w.cx))+2.7*r);
+  const y0=Math.max(0,Math.min(...ws.map(w=>w.cy))-5.4*r),y1=Math.min(P.h,Math.max(...ws.map(w=>w.cy))+1.6*r);
+  for(const [mw,q] of [[1200,.82],[1000,.78],[860,.74],[720,.7]]){
+    const sc=Math.min(1,mw/(x1-x0));const W=Math.round((x1-x0)*sc),H=Math.round((y1-y0)*sc);
+    const c=document.createElement("canvas");c.width=W;c.height=H;c.getContext("2d").drawImage(P.canvas,x0,y0,x1-x0,y1-y0,0,0,W,H);
+    const img=c.toDataURL("image/jpeg",q);
+    if(img.length<230000)return {img,w:W,h:H,rodas:ws.map(w=>({cx:(w.cx-x0)*sc,cy:(w.cy-y0)*sc,rx:w.rx*sc,ry:w.ry*sc,tilt:w.tilt||0,arch:w.arch||1.1}))};
+  }
+  return null;
+}
+async function saveCal(){
+  const msg=$("#calMsg");if(!S.cal||!S.photo)return;
+  if(!(S.db&&S.canWrite)){msg.style.color="var(--bad)";msg.textContent="Abra pelo claude.ai com sua conta para salvar na biblioteca.";return;}
+  const id=curViewId();const fonte=$("#calFonte").value.trim();
+  $("#calSave").disabled=true;msg.style.color="var(--muted)";msg.textContent="Salvando…";
+  try{
+    const t=Date.now();
+    if(S.cal.isNew){
+      const enc=cropAndEncode();if(!enc){throw {code:"size"};}
+      await S.db.doc("fotos/"+id).set({img:enc.img});
+      fotoCache[id]={t,im:await loadSrc(enc.img)};
+      await S.db.doc("vistas/"+id).set({vid:S.vid,gi:S.gi,w:enc.w,h:enc.h,rodas:enc.rodas,lado:S.lado,fonte,atualizado:t});
+    }else{
+      const meta=S.vistas[id];if(!meta)throw {code:"missing"};
+      const rodas=S.wheels.map(w=>({cx:w.cx,cy:w.cy,rx:w.rx,ry:w.ry,tilt:w.tilt||0,arch:w.arch||1.1}));
+      if(fotoCache[id])fotoCache[id].t=t;
+      await S.db.doc("vistas/"+id).set({...meta,rodas,lado:S.lado,fonte:fonte||meta.fonte||"",atualizado:t});
+    }
+    S.cal=null;S.adjust=false;msg.style.color="var(--ok)";msg.textContent="Foto salva na biblioteca.";
+    syncButtons();loadView();renderCal();
+  }catch(e){msg.style.color="var(--bad)";msg.textContent=e&&e.code==="size"?"A foto ficou grande demais. Tente uma foto mais simples ou menor.":e&&e.code==="quota_exceeded"?"A biblioteca chegou ao limite de espaço.":"Não consegui salvar. Confira a conexão e tente de novo.";}
+  finally{$("#calSave").disabled=!S.cal;}
+}
+function cancelCal(){S.cal=null;S.adjust=false;$("#calMsg").textContent="";syncButtons();loadView();renderCal();}
+function startReadjust(){if(!S.vistas[curViewId()]||!S.photo)return;S.cal={isNew:false};S.adjust=true;$("#calFonte").value=S.vistas[curViewId()].fonte||"";syncButtons();renderCal();requestRender();}
+function renderCal(){
+  const card=$("#calCard");card.hidden=!S.calMode;if(!S.calMode)return;
+  const all=[];VEHICLES.forEach(v=>v.g.forEach((g,i)=>all.push({v,g,i,id:viewId(v.id,i)})));
+  const done=all.filter(x=>S.vistas[x.id]).length;
+  $("#calProg").textContent=`${done} de ${all.length} com foto`;
+  $("#calSave").disabled=!S.cal;$("#calCancel").hidden=!S.cal;
+  $("#calAdjust").hidden=!!S.cal||!S.vistas[curViewId()];
+  $("#calCur").innerHTML=`<b>${esc(veh().m)} ${esc(veh().n)}</b> · ${esc(gen().nm)} (${gen().a[0]}–${gen().a[1]}) · ${S.vistas[curViewId()]?'<span class="pill ok">com foto</span>':'<span class="pill warn">sem foto</span>'}`;
+  $("#calList").innerHTML=all.map(x=>`<button class="crow" data-v="${x.v.id}" data-g="${x.i}" aria-pressed="${x.id===curViewId()}">
+    <span>${x.v.rank}. ${esc(x.v.m)} ${esc(x.v.n)} <span class="muted">· ${x.g.a[0]}–${String(x.g.a[1]).slice(2)}</span></span>
+    <span class="pill ${S.vistas[x.id]?"ok":"warn"}">${S.vistas[x.id]?"com foto":"sem foto"}</span></button>`).join("");
+}
+
+/* ======================= UI: VEÍCULO ======================= */
+function buildVehicleSelect(){
+  const groups={};VEHICLES.forEach(v=>(groups[v.m]=groups[v.m]||[]).push(v));
+  $("#veiculo").innerHTML=`<option value="" disabled>Selecione o modelo…</option>`+Object.keys(groups).sort().map(m=>`<optgroup label="${m}">`+groups[m].sort((a,b)=>a.n.localeCompare(b.n)).map(v=>`<option value="${v.id}">${esc(v.m)} ${esc(v.n)}</option>`).join("")+"</optgroup>").join("");
+  $("#swatches").innerHTML=BODY_COLORS.map(([n,c])=>`<button class="sw" style="background:${c}" data-c="${c}" aria-label="${n}" aria-pressed="false"></button>`).join("");
+}
+function syncVehicleUI(){
+  $("#veiculo").value=S.empty?"":S.vid;
+  $("#geracao").innerHTML=veh().g.map((g,i)=>`<option value="${i}">${g.a[0]}–${g.a[1]} · ${esc(g.nm)}</option>`).join("");
+  $("#geracao").value=S.gi;
+  document.querySelectorAll(".sw").forEach(b=>b.setAttribute("aria-pressed",b.dataset.c===S.color));
+  $("#colorWrap").hidden=!!S.photo;
+}
+function renderSpecs(){
+  const g=gen(),d=derive(g);
+  const rims=[...new Set(g.oem.map(o=>o[0]))];
+  $("#specs").innerHTML=[
+    ["Furação",g.pcd],["Centro",fmtN(g.cb)+" mm"],["Aro original",rims.length>1?`${rims[0]}–${rims[rims.length-1]}"`:`${rims[0]}"`],
+    ["Aro máximo",d.max+'"'],["Tala",`${fmtN(d.wMin)}–${fmtN(d.wMax)}"`],["ET",`${d.etLo}–${d.etHi} mm`]
+  ].map(([k,v])=>`<div><dt>${k}</dt><dd>${v}</dd></div>`).join("");
+  $("#tires").innerHTML=`Pneus de fábrica: `+g.oem.map(o=>`<span class="mono">${o[3].replace("R"," R")}</span>`).join(" · ")+(g.low?` <span class="note-low">· conferir no manual</span>`:"");
+}
+
+/* ======================= UI: RODAS ======================= */
+function fitList(){
+  const g=gen();
+  return S.catalog.map(w=>({w,f:checkFit(w,g)}));
+}
+function renderGrid(){
+  const g=gen(),d=derive(g);
+  const all=fitList();
+  const rims=[...new Set(S.catalog.map(w=>w.aro))].sort((a,b)=>a-b);
+  if(S.rimF&&!rims.includes(S.rimF))S.rimF=null;
+  $("#rimFilters").innerHTML=`<button class="fchip" data-r="" aria-pressed="${!S.rimF}">Todos</button>`+rims.map(r=>`<button class="fchip" data-r="${r}" aria-pressed="${S.rimF===r}">${r}"</button>`).join("");
+  let rows=all.filter(x=>!S.rimF||x.w.aro===S.rimF);
+  const fitN=all.filter(x=>x.f.st!=="no").length;
+  if(S.onlyFit) rows=rows.filter(x=>x.f.st!=="no");
+  const ord={ok:0,warn:1,no:2};rows.sort((a,b)=>ord[a.f.st]-ord[b.f.st]||a.w.aro-b.w.aro||a.w.preco-b.w.preco);
+  $("#countLine").textContent=`${fitN} de ${S.catalog.length} servem`;
+  const grid=$("#wheelGrid");
+  $("#rimFilters").hidden=S.empty;
+  if(S.empty){grid.innerHTML=`<div class="empty" style="grid-column:1/-1"><b>Primeiro, a foto do carro.</b><span>As rodas que servem aparecem aqui assim que o modelo for reconhecido.</span></div>`;return;}
+  if(!S.catalog.length){grid.innerHTML=`<div class="empty" style="grid-column:1/-1"><b>O catálogo está vazio.</b><span>Ainda não há rodas cadastradas para esta loja.</span>${S.canWrite?'<button class="btn primary" data-seed>Carregar 18 rodas de exemplo</button>':""}</div>`;return;}
+  if(!rows.length){grid.innerHTML=`<div class="empty" style="grid-column:1/-1"><b>Nenhuma roda do estoque serve neste ${esc(veh().n)}.</b></div>`;return;}
+  grid.innerHTML=rows.map(({w,f})=>{
+    const lbl=f.st==="ok"?"Serve":f.st==="warn"?"Serve com ressalva":"Não serve";
+    return `<button class="wcard${f.st==="no"?" dim":""}" data-id="${esc(w.id)}" aria-pressed="${S.sel===w.id}">
+      <canvas width="180" height="180" data-thumb="${esc(w.id)}"></canvas>
+      <span class="wname">${esc(w.nome)}</span>
+      <span class="wmeta">Aro ${w.aro}</span>
+      <span class="wprice">${w.preco>0?`${fmtBRL(w.preco)}<span class="muted" style="font-size:12px"> /un.</span>`:`<span class="muted">Preço sob consulta</span>`}</span>
+    </button>`;}).join("");
+  grid.querySelectorAll("canvas[data-thumb]").forEach(c=>{const w=S.catalog.find(x=>x.id===c.dataset.thumb);if(w)drawThumb(c,w,d.lugs);});
+}
+function autoPick(){
+  const fits=fitList().filter(x=>x.f.st==="ok").sort((a,b)=>b.w.aro-a.w.aro);
+  const cur=S.catalog.find(w=>w.id===S.sel);
+  if(cur&&checkFit(cur,gen()).st!=="no")return;
+  S.sel=fits.length?fits[Math.min(1,fits.length-1)].w.id:null;
+}
+
+/* ======================= UI: PACOTE E ORÇAMENTO ======================= */
+function tirePrice(t){const base=S.config.pneus?.[t.rim]??DEFAULT_CONFIG.pneus[t.rim]??600;return Math.round(base*(t.w>=245?1.6:1));}
+function quoteData(){
+  const w=selWheel();if(!w)return null;const g=gen(),v=veh(),f=checkFit(w,g),t=suggestTire(g,w.aro,w.tala);
+  const rodas=w.preco*4,pneus=S.incTires?tirePrice(t)*4:0,total=rodas+pneus,parc=Math.max(1,+S.config.parcelas||1);
+  return {w,g,v,f,t,rodas,pneus,total,parc};
+}
+function renderPkg(){
+  const q=quoteData();const el=$("#pkg");
+  if(!q){el.innerHTML=`<p class="lead">Escolha uma roda para montar o pacote.</p>`;return;}
+  const {w,f,t}=q;
+  el.innerHTML=`
+   <div style="display:flex;gap:12px;align-items:center">
+     <canvas width="140" height="140" id="pkgThumb" style="width:70px;height:70px;border-radius:8px;background:radial-gradient(circle at 50% 45%,var(--stage-a),var(--stage-b))"></canvas>
+     <div style="min-width:0"><div class="wname">${esc(w.nome)} · ${esc(FINISHES[w.acabamento]?.label||"")}</div>
+     <div class="wmeta">${w.aro}x${fmtN(w.tala)} ET${w.et} · ${esc(w.pcd)} · centro ${fmtN(w.cb)}</div>
+     <div class="wmeta">Pneu sugerido <b class="mono" style="color:var(--ink)">${t.str}</b> · diâmetro ${t.delta>=0?"+":""}${fmtN(t.delta*100)}%</div></div>
+   </div>
+   <ul class="fit-list">${f.notes.map(([s,n])=>`<li class="${s}">${esc(n)}</li>`).join("")}</ul>`;
+  const tc0=$("#pkgThumb");if(tc0)drawThumb(tc0,w,derive(gen()).lugs);
+  return;
+  el.innerHTML=`
+   <div style="display:flex;gap:12px;align-items:center">
+     <canvas width="140" height="140" id="pkgThumb" style="width:70px;height:70px;border-radius:8px;background:radial-gradient(circle at 50% 45%,var(--stage-a),var(--stage-b))"></canvas>
+     <div style="min-width:0"><div class="wname">${esc(w.nome)} · ${esc(FINISHES[w.acabamento]?.label||"")}</div>
+     <div class="wmeta">${w.aro}x${fmtN(w.tala)} ET${w.et} · ${esc(w.pcd)} · centro ${fmtN(w.cb)}</div>
+     <div class="wmeta">Pneu sugerido <b class="mono" style="color:var(--ink)">${t.str}</b> · diâmetro ${t.delta>=0?"+":""}${fmtN(t.delta*100)}%</div></div>
+   </div>
+   <ul class="fit-list">${f.notes.map(([s,n])=>`<li class="${s}">${esc(n)}</li>`).join("")}</ul>
+   <label class="toggle" style="margin-left:0"><input type="checkbox" id="incTires" ${S.incTires?"checked":""}>Incluir 4 pneus ${t.str}</label>
+   <dl class="quote">
+     <dt>4 rodas × ${fmtBRL(w.preco)}</dt><dd>${fmtBRL(rodas)}</dd>
+     ${S.incTires?`<dt>4 pneus ${t.str} × ${fmtBRL(pneus/4)}</dt><dd>${fmtBRL(pneus)}</dd>`:""}
+     <dt>Montagem, balanceamento e alinhamento</dt><dd>incluso</dd>
+     <dt class="total">Total</dt><dd class="total">${fmtBRL(total)}</dd>
+   </dl>
+   <div class="big-sub">ou ${parc}x de ${fmtBRL(total/parc)} sem juros${w.estoque!=null?` · ${w.estoque} jogo${w.estoque==1?"":"s"} em estoque`:""}</div>`;
+  const tc=$("#pkgThumb");if(tc)drawThumb(tc,w,derive(gen()).lugs);
+}
+function quoteText(){
+  const q=quoteData();if(!q)return "";
+  const {w,v,g,t,rodas,pneus,total,parc,f}=q;const c=S.config;const nome=$("#cliNome").value.trim();
+  const lines=[`*${c.nome}*${c.cidade?" · "+c.cidade:""}`,"",nome?`Olá, ${nome}! Segue o orçamento:`:"Segue o orçamento:","",
+   `Veículo: ${v.m} ${v.n} (${g.a[0]}–${g.a[1]})`,
+   `Rodas: ${w.nome} ${w.aro}x${fmtN(w.tala)} ET${w.et} · ${FINISHES[w.acabamento]?.label||""}`,
+   `Furação ${g.pcd} · ${f.st==="ok"?"compatível":"compatível com ressalva"}`,
+   `4 rodas: ${fmtBRL(rodas)}`];
+  if(S.incTires)lines.push(`4 pneus ${t.str}: ${fmtBRL(pneus)}`);
+  lines.push(`*Total: ${fmtBRL(total)}* ou ${parc}x de ${fmtBRL(total/parc)} sem juros`,"Montagem, balanceamento e alinhamento inclusos.");
+  return lines.join("\n");
+}
+function updateWhats(){
+  if(!$("#bWhats"))return;
+  const txt=quoteText();const fone=$("#cliFone").value.replace(/\D/g,"");
+  const num=fone?(fone.length<=11?"55"+fone:fone):"";
+  $("#bWhats").href=`https://wa.me/${num}?text=${encodeURIComponent(txt)}`;
+  $("#bWhats").setAttribute("aria-disabled",txt?"false":"true");
+}
+
+/* ======================= TAG DO PALCO / BOTÕES ======================= */
+function renderTag(){
+  if(S.empty){$("#stageTag").innerHTML="";return;}
+  const v=veh(),g=gen(),w=selWheel();
+  const parts=[`<span class="chip">${esc(v.n)} <span class="mono">${g.a[0]}–${String(g.a[1]).slice(2)}</span></span>`];
+  parts.push(w?`<span class="chip">${esc(w.nome)} <span class="mono">${w.aro}"</span></span>`:`<span class="chip">Roda original <span class="mono">${derive(g).maxOem}"</span></span>`);
+  if(S.cal)parts.push(`<span class="chip">Configurando foto</span>`);
+  else if(S.photo)parts.push(`<span class="chip">Foto de referência</span>`);
+  else if(S.viewState==="loading")parts.push(`<span class="chip">Carregando foto…</span>`);
+  else parts.push(`<span class="chip">Desenho ilustrativo</span>`);
+  $("#stageTag").innerHTML=parts.join("");
+}
+function syncButtons(){
+  $("#bCompare").setAttribute("aria-pressed",S.compare);$("#bSpin").setAttribute("aria-pressed",S.spin);
+  renderAdjRow();
+  $("#cmpRow").hidden=!S.compare;$("#lblAntes").hidden=!S.compare;$("#lblDepois").hidden=!S.compare;
+  if(!S.adjust)$("#handles").innerHTML="";
+  placeHandles();
+}
+function renderAll(){["#bCompare","#bSpin","#bLow","#bSave"].forEach(id=>$(id).disabled=S.empty);if(S.empty){S.compare=false;S.spin=false;S.lower=false;$("#bLow").setAttribute("aria-pressed",false);syncButtons();}renderSpecs();renderGrid();renderPkg();renderTag();updateWhats();requestRender();}
+
+/* ======================= CATÁLOGO (DONO) ======================= */
+function fillFormSelects(){
+  $("#fEstilo").innerHTML=Object.entries(STYLES).map(([k,s])=>`<option value="${k}">${s.label}</option>`).join("");
+  $("#fAcab").innerHTML=Object.entries(FINISHES).map(([k,s])=>`<option value="${k}">${s.label}</option>`).join("");
+  $("#fAro").innerHTML=RIMS.map(r=>`<option value="${r}">${r}</option>`).join("");$("#fAro").value=17;
+  $("#fPcd").innerHTML=PCDS.map(p=>`<option>${p}</option>`).join("");$("#fPcd").value="4x100";
+  $("#cPneus").innerHTML=RIMS.map(r=>`<div class="field"><label for="cp${r}">Aro ${r}</label><input type="number" id="cp${r}" min="0" step="10"></div>`).join("");
+}
+function renderCatalog(){
+  const b=$("#catBanner");
+  if(S.demo){b.hidden=false;b.textContent="Modo demonstração: as mudanças valem só nesta tela e somem ao recarregar. Abra pelo claude.ai com sua conta para salvar o catálogo de verdade.";}
+  else if(!S.canWrite){b.hidden=false;b.textContent="Você pode ver o catálogo, mas só quem tem permissão de edição pode alterar.";}
+  else b.hidden=true;
+  $("#catCount").textContent=`${S.catalog.length} itens`;
+  const list=$("#catList");
+  if(!S.catalog.length){list.innerHTML=`<div class="empty"><b>Nenhuma roda cadastrada ainda.</b><span>Use o formulário ao lado para cadastrar a primeira, ou comece pelo catálogo de exemplo.</span>${S.canWrite?'<button class="btn primary" data-seed>Carregar 18 rodas de exemplo</button>':""}</div>`;return;}
+  const rows=[...S.catalog].sort((a,b)=>a.pcd.localeCompare(b.pcd)||a.aro-b.aro);
+  list.innerHTML=rows.map(w=>`<div class="lrow"><canvas width="112" height="112" data-cthumb="${esc(w.id)}"></canvas>
+    <div style="min-width:0"><div class="wname">${esc(w.nome)} <span class="muted" style="font-weight:400">· ${esc(FINISHES[w.acabamento]?.label||"")}</span></div>
+    <div class="wmeta">${w.aro}x${fmtN(w.tala)} ET${w.et} · ${esc(w.pcd)} · centro ${fmtN(w.cb)}</div>
+    <div class="wmeta">${fmtBRL(w.preco)}/un. · ${w.estoque??0} jogo(s)</div></div>
+    <div class="acts">${S.canWrite||S.demo?`<button class="btn ghost" data-edit="${esc(w.id)}">Editar</button><button class="btn ghost" data-del="${esc(w.id)}">Remover</button>`:""}</div></div>`).join("");
+  list.querySelectorAll("canvas[data-cthumb]").forEach(c=>{const w=S.catalog.find(x=>x.id===c.dataset.cthumb);if(w)drawThumb(c,w,+w.pcd.split("x")[0]);});
+}
+function fillConfigForm(){const c=S.config;$("#cNome").value=c.nome||"";$("#cCidade").value=c.cidade||"";$("#cWhats").value=c.whats||"";$("#cParc").value=c.parcelas||10;RIMS.forEach(r=>{$("#cp"+r).value=c.pneus?.[r]??DEFAULT_CONFIG.pneus[r];});$("#storeLine").textContent=`${c.nome}${c.cidade?" · "+c.cidade:""}`;}
+function formWheel(){
+  return {nome:$("#fNome").value.trim(),estilo:$("#fEstilo").value,acabamento:$("#fAcab").value,aro:+$("#fAro").value,tala:+$("#fLarg").value,et:Math.round(+$("#fEt").value),
+    pcd:$("#fPcd").value,cb:+$("#fCb").value,preco:Math.round(+$("#fPreco").value),estoque:Math.max(0,Math.round(+$("#fEstoque").value||0)),foto:S.formFoto||null};
+}
+function drawFormPrev(){const c=$("#fPrev");const w={id:"__form",...formWheel()};if(w.foto)wheelImg(w);drawThumb(c,w,+w.pcd.split("x")[0]);$("#fFotoClear").hidden=!S.formFoto;}
+function editWheel(id){const w=S.catalog.find(x=>x.id===id);if(!w)return;S.editing=id;$("#formTitle").textContent="Editar roda";$("#fCancel").hidden=false;
+  $("#fNome").value=w.nome;$("#fEstilo").value=w.estilo;$("#fAcab").value=w.acabamento;$("#fAro").value=w.aro;$("#fLarg").value=w.tala;$("#fEt").value=w.et;$("#fPcd").value=w.pcd;$("#fCb").value=w.cb;$("#fPreco").value=w.preco;$("#fEstoque").value=w.estoque??0;S.formFoto=w.foto||null;drawFormPrev();
+  $("#wForm").scrollIntoView({behavior:reduceMotion?"auto":"smooth",block:"start"});}
+function resetForm(){S.editing=null;S.formFoto=null;$("#wForm").reset();$("#formTitle").textContent="Nova roda";$("#fCancel").hidden=true;$("#fAro").value=17;$("#fPcd").value="4x100";$("#fCb").value=73.1;drawFormPrev();}
+const slug=s=>s.normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+async function saveWheel(e){
+  e.preventDefault();const w=formWheel();const msg=$("#fMsg");
+  if(!w.nome){msg.style.color="var(--bad)";msg.textContent="Dê um nome ao modelo.";$("#fNome").focus();return;}
+  if(!(w.preco>0)){msg.style.color="var(--bad)";msg.textContent="Informe o preço por unidade.";return;}
+  const id=S.editing||`${slug(w.nome)}-${w.aro}-${slug(w.pcd)}-${Date.now().toString(36).slice(-4)}`;
+  const doc={...w};if(!doc.foto)delete doc.foto;
+  $("#fSave").disabled=true;
+  try{
+    if(S.db&&S.canWrite){await S.db.collection("rodas").doc(id).set(doc);}
+    else{const i=S.catalog.findIndex(x=>x.id===id);if(i>=0)S.catalog[i]={id,...doc};else S.catalog.push({id,...doc});renderCatalog();renderAll();}
+    msg.style.color="var(--ok)";msg.textContent=S.editing?"Roda atualizada.":"Roda cadastrada.";resetForm();
+  }catch(err){msg.style.color="var(--bad)";msg.textContent="Não consegui salvar. Confira sua conexão e tente de novo.";}
+  finally{$("#fSave").disabled=false;}
+}
+let pendingDel=null;
+async function delWheel(id,btn){
+  if(pendingDel!==id){pendingDel=id;btn.textContent="Confirmar remoção";btn.style.color="var(--bad)";setTimeout(()=>{if(pendingDel===id){pendingDel=null;renderCatalog();}},4000);return;}
+  pendingDel=null;
+  try{if(S.db&&S.canWrite)await S.db.collection("rodas").doc(id).delete();else{S.catalog=S.catalog.filter(x=>x.id!==id);renderCatalog();renderAll();}if(S.sel===id)S.sel=null;toast("Roda removida.");}
+  catch{toast("Não consegui remover. Tente de novo.");}
+}
+async function seedCatalog(btn){
+  if(!(S.db&&S.canWrite))return;btn.disabled=true;btn.textContent="Carregando…";
+  try{for(const w of DEMO_WHEELS){const {id,...doc}=w;await S.db.collection("rodas").doc(id).set(doc);}toast("Catálogo de exemplo carregado.");}
+  catch{toast("Não consegui carregar o catálogo de exemplo.");btn.disabled=false;}
+}
+async function saveConfig(e){
+  e.preventDefault();const pneus={};RIMS.forEach(r=>{pneus[r]=Math.round(+$("#cp"+r).value||0);});
+  const c={nome:$("#cNome").value.trim()||DEFAULT_CONFIG.nome,cidade:$("#cCidade").value.trim(),whats:$("#cWhats").value.replace(/\D/g,""),parcelas:Math.max(1,Math.round(+$("#cParc").value||1)),pneus};
+  try{if(S.db&&S.canWrite)await S.db.doc("config/loja").set(c);else{S.config=c;fillConfigForm();renderAll();}$("#cMsg").textContent="Dados salvos.";setTimeout(()=>$("#cMsg").textContent="",2500);}
+  catch{$("#cMsg").style.color="var(--bad)";$("#cMsg").textContent="Não consegui salvar.";}
+}
+async function onFormFoto(file){
+  if(!file)return;try{const im=await loadImage(file);const s=Math.min(im.naturalWidth,im.naturalHeight);const c=document.createElement("canvas");c.width=c.height=320;
+    c.getContext("2d").drawImage(im,(im.naturalWidth-s)/2,(im.naturalHeight-s)/2,s,s,0,0,320,320);S.formFoto=c.toDataURL("image/jpeg",.8);drawFormPrev();}
+  catch{toast("Não consegui abrir a foto da roda.");}
+}
+
+/* ======================= VEÍCULOS ======================= */
+function renderVehicles(){
+  const q=$("#vBusca").value.trim().toLowerCase();const max=VEHICLES[0].v;
+  const rows=VEHICLES.filter(v=>!q||`${v.m} ${v.n} ${v.g.map(g=>g.pcd).join(" ")}`.toLowerCase().includes(q));
+  $("#vBody").innerHTML=rows.length?rows.map(v=>`<tr>
+    <td class="num">${v.rank}</td>
+    <td><b>${esc(v.m)} ${esc(v.n)}</b><div class="muted" style="font-size:12px">${TYPE_LABEL[v.t]}${v.g.some(g=>g.low)?' · <span class="note-low">conferir</span>':""}</div></td>
+    <td class="num">${v.v.toLocaleString("pt-BR")}<div class="bar" style="width:${Math.max(4,v.v/max*100)}%;margin-left:auto"></div></td>
+    <td>${v.g.map(g=>`<div class="gen-line">${g.a[0]}–${String(g.a[1]).slice(2)}: ${g.pcd} · ${fmtN(g.cb)}</div>`).join("")}</td>
+    <td>${v.g.map(g=>`<div class="gen-line">${[...new Set(g.oem.map(o=>o[0]))].join(", ")}"</div>`).join("")}</td>
+    <td>${v.g.map(g=>`<div class="gen-line">${g.max}"</div>`).join("")}</td>
+    <td><button class="btn ghost" data-use="${v.id}">Provar rodas</button></td></tr>`).join(""):`<tr><td colspan="7" class="muted">Nenhum modelo encontrado para “${esc(q)}”.</td></tr>`;
+}
+
+/* ======================= NAVEGAÇÃO ======================= */
+function showTab(t){
+  ["provador","catalogo","veiculos"].forEach(k=>{$("#sec-"+k).hidden=k!==t;$("#tab-"+k)?.setAttribute("aria-selected",k===t);});
+  if(t==="provador")requestRender();
+}
+
+/* ======================= EVENTOS ======================= */
+function pickVehicle(vid,gi){
+  S.vid=vid;S.gi=gi;S.empty=false;
+  if(S.cal){S.cal=null;S.adjust=false;syncButtons();$("#calMsg").textContent="";}
+  syncVehicleUI();autoPick();loadView();renderAll();renderCal();
+}
+$("#veiculo").addEventListener("change",e=>{S.ai&&S.ai.st!=="busy"&&(S.ai=null);renderAI();pickVehicle(e.target.value,byId[e.target.value].g.length-1);});
+$("#geracao").addEventListener("change",e=>{pickVehicle(S.vid,+e.target.value);});
+$("#calFile").addEventListener("change",e=>{onCalFile(e.target.files[0]);e.target.value="";});
+$("#calSave").addEventListener("click",saveCal);
+$("#calCancel").addEventListener("click",cancelCal);
+$("#calAdjust").addEventListener("click",startReadjust);
+$("#calList").addEventListener("click",e=>{const b=e.target.closest(".crow");if(!b)return;pickVehicle(b.dataset.v,+b.dataset.g);if(matchMedia("(max-width:959px)").matches)$("#frame").scrollIntoView({behavior:reduceMotion?"auto":"smooth",block:"start"});});
+function setMode(){S.calMode=(location.hash||"").slice(1)==="calibrar";if(S.calMode&&S.empty){S.empty=false;loadView();renderAll();}if(!S.calMode&&S.cal)cancelCal();renderCal();}
+window.addEventListener("hashchange",setMode);
+$("#swatches").addEventListener("click",e=>{const b=e.target.closest(".sw");if(!b)return;S.color=b.dataset.c;syncVehicleUI();requestRender();});
+["#photoCam","#photoGal"].forEach(id=>$(id).addEventListener("change",e=>{onPhotos(e.target.files);e.target.value="";}));
+const drop=$("#drop");
+["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("over");}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("over");}));
+drop.addEventListener("drop",e=>onPhotos(e.dataTransfer.files));
+$("#rimFilters").addEventListener("click",e=>{const b=e.target.closest("[data-r]");if(!b)return;S.rimF=b.dataset.r?+b.dataset.r:null;renderGrid();});
+$("#bManual").addEventListener("click",()=>{const r=$("#manualRow");r.hidden=!r.hidden;});
+$("#onlyFit").addEventListener("change",e=>{S.onlyFit=e.target.checked;renderGrid();});
+document.addEventListener("click",e=>{const s=e.target.closest("[data-seed]");if(s)seedCatalog(s);});
+$("#wheelGrid").addEventListener("click",e=>{const b=e.target.closest(".wcard");if(!b)return;S.sel=b.dataset.id;
+  const f=checkFit(selWheel(),gen());if(f.st==="no")
+  renderGrid();renderPkg();renderTag();updateWhats();requestRender();
+  if(matchMedia("(max-width:959px)").matches)$("#frame").scrollIntoView({behavior:reduceMotion?"auto":"smooth",block:"start"});});
+$("#pkg").addEventListener("change",e=>{if(e.target.id==="incTires"){S.incTires=e.target.checked;renderPkg();updateWhats();}});
+$("#bCompare").addEventListener("click",()=>{S.compare=!S.compare;syncButtons();requestRender();});
+$("#bLow").addEventListener("click",()=>{S.lower=!S.lower;$("#bLow").setAttribute("aria-pressed",S.lower);requestRender();});
+$("#bSpin").addEventListener("click",()=>{S.spin=!S.spin;syncButtons();requestRender();});
+$("#split").addEventListener("input",e=>{S.split=e.target.value/100;requestRender();});
+$("#adjRow").addEventListener("input",e=>{const d=e.target.dataset;
+  if(d.tilt!=null)S.wheels[+d.tilt].tilt=(+e.target.value)*Math.PI/180;
+  else if(d.arch!=null)S.wheels[+d.arch].arch=(+e.target.value)/100;else return;
+  requestRender();});
+$("#adjRow").addEventListener("click",e=>{
+  if(e.target.closest("[data-lado]")){S.lado=-S.lado;renderAdjRow();requestRender();return;}
+  if(e.target.closest("[data-keep]")){S.keepTire=!S.keepTire;renderAdjRow();requestRender();return;}
+  const b=e.target.closest("[data-band]");if(!b)return;S.wheels[+b.dataset.band].band=+b.dataset.v;renderAdjRow();requestRender();});
+function fallbackCopy(t){const ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand("copy");toast("Orçamento copiado.");}catch{toast("Selecione e copie o texto manualmente.");}ta.remove();}
+let downloads=null;
+$("#bSave").addEventListener("click",async()=>{
+  if(!downloads)return;
+  const blob=await toBlob(cv,.92);
+  const v=veh(),w=selWheel();const name=`rodacerta-${slug(v.n)}${w?"-"+slug(w.nome)+"-"+w.aro:""}.jpg`;
+  try{const r=await downloads.save({filename:name,data:blob});if(r?.status==="saved")toast("Imagem salva.");}catch(e){if(e&&e.code!=="declined")toast("Não consegui salvar a imagem.");}
+});
+$("#wForm").addEventListener("submit",saveWheel);
+$("#wForm").addEventListener("input",e=>{if(e.target.id!=="fFoto")drawFormPrev();});
+$("#wForm").addEventListener("change",e=>{if(e.target.id==="fFoto")onFormFoto(e.target.files[0]);else drawFormPrev();});
+$("#fFotoClear").addEventListener("click",()=>{S.formFoto=null;$("#fFoto").value="";drawFormPrev();});
+$("#fCancel").addEventListener("click",resetForm);
+$("#catList").addEventListener("click",e=>{const ed=e.target.closest("[data-edit]");if(ed)return editWheel(ed.dataset.edit);const dl=e.target.closest("[data-del]");if(dl)delWheel(dl.dataset.del,dl);});
+$("#cfgForm").addEventListener("submit",saveConfig);
+$("#vBusca").addEventListener("input",renderVehicles);
+$("#vBody").addEventListener("click",e=>{const b=e.target.closest("[data-use]");if(!b)return;pickVehicle(b.dataset.use,byId[b.dataset.use].g.length-1);showTab("provador");try{history.replaceState(null,"","#provador");}catch{}window.scrollTo({top:0});});
+window.addEventListener("resize",()=>{if(S.adjust)placeHandles();});
+matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change",()=>{requestRender();renderGrid();});
+new MutationObserver(()=>{requestRender();renderGrid();renderCatalog();}).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+
+/* ======================= INÍCIO ======================= */
+function boot(){
+  buildVehicleSelect();fillFormSelects();syncVehicleUI();fillConfigForm();
+  autoPick();renderAll();renderCatalog();renderVehicles();drawFormPrev();syncButtons();setMode();
+}
+boot();
+
+(async()=>{
+  const [db,user,dl]=await Promise.all([useCap("db"),useCap("user"),useCap("downloads")]);
+  if(dl){downloads=dl;$("#bSave").hidden=false;}
+  if(!db)return; // segue em modo demonstração
+  S.db=db;S.demo=false;
+  let can=null;try{can=user?await user.can("data.write"):null;}catch{}
+  S.canWrite=can!==false;
+  db.collection("rodas").onSnapshot(snap=>{
+    S.catalog=snap.docs.map(d=>({id:d.id,...d.data()}));
+    autoPick();renderAll();renderCatalog();
+  },()=>{S.db=null;S.demo=true;renderCatalog();});
+  db.collection("vistas").onSnapshot(snap=>{
+    const m={};snap.docs.forEach(d=>{m[d.id]=d.data();});
+    const id=curViewId(),before=S.vistas[id]?.atualizado;S.vistas=m;
+    if(m[id]?.atualizado!==before||(!S.photo&&m[id]))loadView();
+    renderCal();renderAI();
+  },()=>{});
+  db.doc("config/loja").onSnapshot(s=>{if(s.exists){S.config={...structuredClone(DEFAULT_CONFIG),...s.data()};fillConfigForm();renderPkg();updateWhats();}});
+  renderCatalog();
+})();
+</script>
+
+</body></html>

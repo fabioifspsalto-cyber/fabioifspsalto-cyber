@@ -1,0 +1,11 @@
+{
+  "name": "sorriso-saas",
+  "private": true,
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev:api": "npm run dev -w apps/api",
+    "dev:web": "npm run dev -w apps/web",
+    "test": "npm test -w apps/api",
+    "build": "npm run build -w apps/web"
+  }
+}

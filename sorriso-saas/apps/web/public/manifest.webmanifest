@@ -1,0 +1,2 @@
+{ "name": "Simulador de Sorriso", "short_name": "Sorriso", "start_url": "/", "display": "standalone",
+  "orientation": "landscape", "background_color": "#ffffff", "theme_color": "#2EC4B6", "icons": [] }
